@@ -9,6 +9,20 @@ import json
 import os
 
 
+# class CPUFlags:
+#     _f: list = ['-', '-', '-', '-']
+
+#     def __init__(self, flags: list):
+#         if flags is not None:
+#             self._f = ['-', '-', '-', '-']
+#             for (idx, val) in enumerate(flags, start=0):
+#                 if idx < 4:
+#                     if val:
+
+#                     self._f[idx] = val
+
+
+
 @singleton
 class InstructionSet():
     """ Represents the entire Z80 instruction set """
@@ -161,12 +175,39 @@ class InstructionSet():
         self._exp_conv = ExpressionConversion()
         self._ins_detail = self._load_ins_detail()
 
+
+    def instruction_from_mnemonic(self, mnemonic: str) -> dict:
+        """Returns the instruction definition dict for the given
+        mnemonic"""
+        if mnemonic is not None:
+            if mnemonic in self._instructions:
+                return self._instructions[mnemonic]
+        return None
+
+    def instruction_detail_from_byte(self, byte: str) -> dict:
+        if byte in self._ins_detail:
+            return self._ins_detail[byte]
+        return None
+
+    @property
+    def instruction_set(self):
+        """ Returns the Z80 instruction set as a dictionary. """
+        return self._instructions
+
+    def is_mnemonic(self, mnemonic_string: str) -> bool:
+        if mnemonic_string:
+            return mnemonic_string.upper() in self._mnemonics
+        return False
+
+    # -------------------------------------------------------------------------
+    # Private functions.
+
     def _build_CP_instructions(self):
         start = 0xb8
         index = 0
         mn = "CP"
-        existing = {
-        } if mn not in self._instructions else self._instructions[mn]
+        existing = {} if mn not in self._instructions \
+            else self._instructions[mn]
         top = {}
         for reg in Registers().working_registers():
             top[reg] = {"!": start + index}
@@ -176,8 +217,8 @@ class InstructionSet():
         start = 0x40
         index = 0
         mn = "LD"
-        existing = {
-        } if mn not in self._instructions else self._instructions[mn]
+        existing = {} if mn not in self._instructions \
+            else self._instructions[mn]
         for to_reg in Registers().working_registers():
             tr = {} if to_reg not in existing else existing[to_reg]
             fr = {}
@@ -273,29 +314,6 @@ class InstructionSet():
             fh = open(json_filename)
             return json.load(fh)
         return None
-
-    def instruction_from_mnemonic(self, mnemonic: str) -> dict:
-        """Returns the instruction definition dict for the given
-        mnemonic"""
-        if mnemonic is not None:
-            if mnemonic in self._instructions:
-                return self._instructions[mnemonic]
-        return None
-
-    def instruction_detail_from_byte(self, byte: str) -> dict:
-        if byte in self._ins_detail:
-            return self._ins_detail[byte]
-        return None
-
-    @property
-    def instruction_set(self):
-        """ Returns the Z80 instruction set as a dictionary. """
-        return self._instructions
-
-    def is_mnemonic(self, mnemonic_string: str) -> bool:
-        if mnemonic_string:
-            return mnemonic_string.upper() in self._mnemonics
-        return False
 
 
 ###############################################################################

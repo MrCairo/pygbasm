@@ -2,12 +2,9 @@
 These classes implements the Z80/LR35902 instruction set features
 """
 
-from singleton_decorator import singleton
-from gbasm.conversions import ExpressionConversion
-from gbasm.instruction import Registers, InstructionSet
-from gbasm.exception import Error, ErrorCode
 from gbasm.constants import Constant
 from gbasm.instruction.parser import InstructionParser
+from gbasm.exception import Error, ErrorCode
 from typing import NewType
 
 Address = NewType('Address', int)
@@ -77,38 +74,6 @@ class Placeholder():
 
 
 ###############################################################################
-class ParseResults():
-    """
-    Encapsulates a result from parsing an instruction. This class
-    stores the bytearray of the parsed instruction or an error string.
-    A ParseResult object with out the 'data; property being set indicates
-    a failed parse. In this case the 'error' property should contain the
-    error information (via the Error object). A Parseresults object should
-    never be instantiated with both the data and error value set to None.
-    """
-    def __init__(self, data: bytearray, error: Error = None,
-                 placeholder: Placeholder = None):
-        self._data = data
-        self._error = error
-        self._placeholder = placeholder
-
-    @property
-    def error(self) -> Error:
-        "Return the error information (if available)"
-        return self._error
-
-    @property
-    def data(self) -> bytearray:
-        """Returns the resulting machine code (binary)."""
-        return self._data
-
-    @property
-    def placeholder(self) -> Placeholder:
-        """ If not none, the placeholder that was found during parsing."""
-        return self._placeholder
-
-
-###############################################################################
 
 
 class Instruction():
@@ -118,42 +83,48 @@ class Instruction():
         instruction = instruction.upper()
         clean = instruction.strip()
         self.instruction = clean.split(';')[0]
-        self._parts = InstructionParser.explode(instruction)
-        self._mnemonic = None if "opcode" not in self._parts \
-            else self._parts["opcode"]
-        self._operands = None if "operands" not in self._parts \
-            else self._parts["operands"]
         ip = InstructionParser(instruction)
+        self._tokens = ip.tokens()
         self._parse_results = ip.result()
         self._placeholder_string = None
 
     def __repr__(self):
-        desc = " Mnemonic = " + self._mnemonic + "\n"
+        desc = "   Mnemonic = " + self._tokens.opcode() + "\n"
         if self.operands:
-            desc += "Arguments = " + ','.join(f"{x}" for x in self.operands)
+            desc +=  "  Arguments = " + ',' . \
+                join(f"{x}" for x in self._tokens.operands())
             desc += "\n"
 
         if self._parse_results:
-            if self._parse_results.data:
-                desc += "code: "
-                for byte in self._parse_results.data:
+            if self._parse_results.binary():
+                desc += "       Code = "
+                for byte in self._parse_results.binary():
                     desc += f"{byte:02x} "
                 desc += "\n"
             else:
-                desc += self._parse_results.error.__repr__()
-            if self._parse_results.placeholder:
-                desc += " " + self._parse_results.placeholder.__repr__()
+                if self._parse_results.operand1_error():
+                    desc += "  Op1 error = " + \
+                        self._parse_results.operand1_error().__repr__()
+                    desc += "\n"
+                if self._parse_results.operand2_error():
+                    desc += "  Op2 error = " + \
+                        self._parse_results.operand2_error().__repr__()
+                    desc += "\n"
+            if self._parse_results.placeholder():
+                desc += "Placeholder = " + self._parse_results.placeholder()
+                desc += "\n"
         return desc
 
     @property
     def mnemonic(self) -> str:
         """Represents the parsed mnemonic of the Instruction """
-        return self._mnemonic
+        return self._tokens.opcode()
 
     @property
     def operands(self):
         """Returns an array of operands or None if there are no operands """
-        return [] if self._operands is None else self._operands
+        return [] if self._tokens.operands() is None else \
+            self._tokens.operands()
 
     @property
     def machine_code(self) -> bytearray:
@@ -202,59 +173,54 @@ class Instruction():
         Returns true if the Instruc object is valid. Validity is
         determined on whether the instruction was
         """
-        return self._parse_results.data
+        return self._parse_results.bytes is not None
 
     # class Instruction ends here
-###############################################################################
 
 
-###############################################################################
-# Utility functions
-
-# Aliases to class names I don't like to type (or fit within 79 chars)
 ###############################################################################
 
 
 if __name__ == "__main__":
-    ins = InstructionParser("JP NZ, $0010")
+    ins = Instruction("JP NZ, $0010")
     print(ins)
 
-    ins = InstructionParser("LD a, ($ff00)")
+    ins = Instruction("LD a, ($ff00)")
     print(ins)
 
-    ins = InstructionParser("LD ($ff00), a")
+    ins = Instruction("LD ($ff00), a")
     print(ins)
 
-    ins = InstructionParser("RrCa")
+    ins = Instruction("RrCa")
     print(ins)
 
-    ins = InstructionParser("Add HL, SP")
+    ins = Instruction("Add HL, SP")
     print(ins)
 
-    ins = InstructionParser("LD A, (HL-)")
+    ins = Instruction("LD A, (HL-)")
     print(ins)
 
-    ins = InstructionParser("ADD SP, $25")
+    ins = Instruction("ADD SP, $25")
     print(ins)
 
-    ins = InstructionParser("LD b, c")
+    ins = Instruction("LD b, c")
     print(ins)
 
-    ins = InstructionParser("Nop")
+    ins = Instruction("Nop")
     print(ins)
 
-    ins = InstructionParser("JP (HL)")
+    ins = Instruction("JP (HL)")
     print(ins)
 
-    ins = InstructionParser("LD A, ($aabb)")
+    ins = Instruction("LD A, ($aabb)")
     print(ins)
 
-    ins = InstructionParser("SET 3, (HL)")
+    ins = Instruction("SET 3, (HL)")
     print(ins)
 
     # Failures
-    ins = InstructionParser("JR .RELATIVE")
+    ins = Instruction("JR .RELATIVE")
     print(ins)
 
-    ins = InstructionParser("NOP A")
+    ins = Instruction("NOP A")
     print(ins)

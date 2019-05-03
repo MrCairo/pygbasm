@@ -10,11 +10,131 @@ from gbasm.exception import Error, ErrorCode
 EC = ExpressionConversion
 IS = InstructionSet
 
+
+class ParserTokens:
+    """
+    A data class that stores the instruction tokens and provides easy
+    access to the token values.
+    """
+
+    _tok: dict
+
+    def __init__(self, tokens: dict) -> None:
+        self._tok = {} if "tok" not in tokens else tokens
+
+    def tokens(self):
+        """
+        The raw tokens created by the parser. It still may have values
+        even if the instruction parsed was invalid.
+        """
+        return None if "tok" not in self._tok else self._tok["tok"]
+
+    def opcode(self) -> str:
+        """
+        Returns the opcode (mnemonic) from the tokens
+        """
+        return self._exploded_val("opcode")
+
+    def operands(self) -> str:
+        """
+        Returns the operands from the tokens
+        """
+        return self._exploded_val("operands")
+
+    def definition(self) -> dict:
+        """
+        Returns the instruction definition as defined in the
+        InstructionSet
+        """
+        ins_def = None if "ins_def" not in self._tok else self._tok["ins_def"]
+        return ins_def
+
+    def _exploded_val(self, key):
+        tok = self.tokens()
+        if not tok:
+            return None
+        ops = None if key not in tok else tok[key]
+        return ops
+
+###############################################################################
+
+"""
+{   'addr': '$c4',
+    'bytes': b'\xc4\x12\x00',
+    'cycles': [24, 12],
+    'flags': ['-', '-', '-', '-'],
+    'length': 3,
+    'mnemonic': 'CALL',
+    'operand1': 'NZ',
+    'operand2': 'a16',
+    'placeholder': 'a16'}
+"""
+
+
+class ParserResults():
+    """
+    Encapsulates a result from parsing an instruction. This class
+    stores the bytearray of the parsed instruction or an error string.
+    A ParseResult object with out the 'data; property being set indicates
+    a failed parse. In this case the 'error' property should contain the
+    error information (via the Error object). A Parseresults object should
+    never be instantiated with both the data and error value set to None.
+    """
+    _raw: dict = {}
+
+    def __init__(self, raw_results: dict) -> None:
+        self._raw = {} if raw_results is None else raw_results
+
+    def addr(self) -> str:
+        return self._if_found("addr")
+
+    def binary(self) -> bytes:
+        return self._if_found("bytes")
+
+    def cpu_cycles(self) -> list:
+        return self._if_found("cycles")
+
+    def flags(self) -> list:
+        f = ['-', '-', '-', '-']
+        if "flags" in self._raw:
+            for (idx, val) in enumerate(self._raw['flags'], start=0):
+                if idx < 4:
+                    f[idx] = val
+        return f
+
+    def length(self) -> int:
+        return self._if_found("length")
+
+    def mnemonic(self) -> str:
+        return self._if_found("mnemonic")
+
+    def operand1(self) -> str:
+        return self._if_found("operand1")
+
+    def operand2(self) -> str:
+        return self._if_found("operand2")
+
+    def operand1_error(self) -> Error:
+        return self._if_found("operand1_error")
+
+    def operand2_error(self) -> Error:
+        return self._if_found("operand2_error")
+
+    def placeholder(self) -> str:
+        return self._if_found("placeholder")
+
+    def _if_found(self, key):
+        return None if key not in self._raw else self._raw[key]
+
+###############################################################################
+
+
 class InstructionParser:
     """ Parses an individual instruction """
     def __init__(self, instruction: str):
         self._final = {}   # Final result dictionary.
         self.state = None
+        self._tokens = None
         if instruction:
             self._final = None
             tok = self._tokenize(instruction)
@@ -24,6 +144,22 @@ class InstructionParser:
     def __repr__(self):
         pp = pprint.PrettyPrinter(indent=4)
         return pp.pformat(self._final)
+
+    def result(self) -> ParserResults:
+        """
+        Returns the results from the parser in a ParserResults object
+        """
+        return ParserResults(self._final)
+
+    def raw_results(self) -> dict:
+        """
+        Returns the raw results from the parser
+        """
+        return self._final
+
+    def tokens(self) -> ParserTokens:
+        """ Returns the tokenized parsed instruction """
+        return self._tokens
 
     @staticmethod
     def _explode(instruction: str) -> dict:
@@ -60,6 +196,7 @@ class InstructionParser:
                 ins = IS().instruction_from_mnemonic(exploded["opcode"])
                 result = {"tok": exploded,
                           "ins_def": ins}
+        self._tokens = ParserTokens(result)
         return result
 
     def _parse(self, tokens: dict) -> dict:
@@ -72,7 +209,6 @@ class InstructionParser:
         self.state = _State(tokens["ins_def"], {}, "")
         mnemonic = tok["opcode"]
         operands = [] if "operands" not in tok else tok["operands"]
-        ops = {}
         for (idx, arg) in enumerate(operands, start=1):
             # True if the argument is within parens like "(HL)"
             self.state.arg = arg
@@ -96,22 +232,14 @@ class InstructionParser:
             # Add the binary mnemonic value to the binary array (ba)
             hex_data = self._int_to_z80binary(dec_val)
             self.state.prepend_bytes(hex_data)
-            final = InstructionSet().instruction_detail_from_byte(byte)
-            if final:
-                final["bytes"] = bytes(self.state.ins_bytes)
-                for item in ["placeholder", "operand1", "operand2", "binary"]:
-                    if item in :
-                        final[item] = ops[item]
-            self._final = final
-            return final
+            return self.state.get_instruction_detail(byte)
         # Failiure case
         failure = {"mnemonic": mnemonic, "error": True}
-        for item in ops:
-            failure[item] = ops[item]
+        self.state.merge_operands(failure)
+        failure = self.state.get_instruction_detail(None)
+        if failure:
+            failure["mnemonic"] = mnemonic
         return failure
-
-    def result(self):
-        return self._final
 
     def _is_within_parens(self, value: str) -> bool:
         clean = value.strip()
@@ -262,7 +390,7 @@ class _State:
         self.operands[self.op_key] = val
         if err is not None:
             self.operands[self.err_key] = err
-            self.roamer = None
+            self.roamer = {}
         self.inc_operand_index()
 
     def inc_operand_index(self):
@@ -294,19 +422,38 @@ class _State:
             self.arg = arg
         return (self._arg.startswith("(") and self._arg.endswith(")"))
 
+    def merge_operands(self, into: dict):
+        if into:
+            for key in self.operands.keys():
+                into[key] = self.operands[key]
+
     def get_instruction_detail(self, byte: int) -> dict:
-        final = InstructionSet().instruction_detail_from_byte(byte)
-        if final:
-            final["bytes"] = bytes(self.state.ins_bytes)
-            for item in ["placeholder", "operand1", "operand2", "binary"]:
+        if byte is None:
+            final = {}
+        else:
+            final = InstructionSet().instruction_detail_from_byte(byte)
+        if final is not None:
+            final["bytes"] = bytes(self.ins_bytes)
+            for item in ["placeholder", "operand1", "operand2",
+                         "operand1_error", "operand2_error"]:
                 if item in self.operands:
-                    final[item] = ops[item]
+                    final[item] = self.operands[item]
+        return final
+
+#    def make_results(self):
 
 
+###############################################################################
 
 if __name__ == "__main__":
-    ins = InstructionParser("JP NZ, $0010")
+    ins = InstructionParser("JP NZ, xxxx")
     print(ins)
 
     ins = InstructionParser("LD a, ($ff00)")
+    print(ins)
+
+    ins = InstructionParser("DEC D")
+    print(ins)
+
+    ins = InstructionParser("CALL NZ $12")
     print(ins)

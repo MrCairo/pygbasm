@@ -12,6 +12,7 @@ from gbasm.instruction import Instruction, InstructionPointer
 from gbasm.label import Label, Labels
 from gbasm.conversions import ExpressionConversion
 
+
 class Action(IntEnum):
     """The current state of the parser state machine."""
     INITIAL = auto()
@@ -100,7 +101,7 @@ class Parser():
             _ = self._process_equate(clean)
         elif line[0] in Label.first_chars:
             """
-            Tets if the label is before a SECTION is defined.
+            Test if the label is before a SECTION is defined.
             """
             msg = "A label cannot appear before a SECTION."
             if not self.sections:
