@@ -1,26 +1,11 @@
 """
-Creates the Z80/LR35902 instruction set codes.
-This class is implemented as a singleton.
+Class(es) that implements a Z80/LR35902 instruction and Instruction Set
 """
+
 from singleton_decorator import singleton
-from gbasm.instruction import Registers
-from gbasm.conversions import ExpressionConversion
+from gbasm.instruction.registers import Registers
 import json
 import os
-
-
-# class CPUFlags:
-#     _f: list = ['-', '-', '-', '-']
-
-#     def __init__(self, flags: list):
-#         if flags is not None:
-#             self._f = ['-', '-', '-', '-']
-#             for (idx, val) in enumerate(flags, start=0):
-#                 if idx < 4:
-#                     if val:
-
-#                     self._f[idx] = val
-
 
 
 @singleton
@@ -172,9 +157,9 @@ class InstructionSet():
         self._build_CB_instructions()
         self._build_CP_instructions()
         self._mnemonics = self._instructions.keys()
-        self._exp_conv = ExpressionConversion()
         self._ins_detail = self._load_ins_detail()
 
+        # -----=====< End of __init__() >=====----- #
 
     def instruction_from_mnemonic(self, mnemonic: str) -> dict:
         """Returns the instruction definition dict for the given
@@ -199,8 +184,8 @@ class InstructionSet():
             return mnemonic_string.upper() in self._mnemonics
         return False
 
-    # -------------------------------------------------------------------------
-    # Private functions.
+    #                                             #
+    # -----=====<  Private Functions  >=====----- #
 
     def _build_CP_instructions(self):
         start = 0xb8
@@ -315,9 +300,50 @@ class InstructionSet():
             return json.load(fh)
         return None
 
+# --------========[ End of InstructionSet class ]========-------- #
 
 ###############################################################################
 
 if __name__ == "__main__":
-    test = InstructionSet().match_instruction("JR $80")
-    print(test)
+    ins = Instruction("JP NZ, $0010")
+    print(ins)
+
+    ins = Instruction("LD a, ($ff00)")
+    print(ins)
+
+    ins = Instruction("LD ($ff00), a")
+    print(ins)
+
+    ins = Instruction("RrCa")
+    print(ins)
+
+    ins = Instruction("Add HL, SP")
+    print(ins)
+
+    ins = Instruction("LD A, (HL-)")
+    print(ins)
+
+    ins = Instruction("ADD SP, $25")
+    print(ins)
+
+    ins = Instruction("LD b, c")
+    print(ins)
+
+    ins = Instruction("Nop")
+    print(ins)
+
+    ins = Instruction("JP (HL)")
+    print(ins)
+
+    ins = Instruction("LD A, ($aabb)")
+    print(ins)
+
+    ins = Instruction("SET 3, (HL)")
+    print(ins)
+
+    # Failures
+    ins = Instruction("JR .RELATIVE")
+    print(ins)
+
+    ins = Instruction("NOP A")
+    print(ins)

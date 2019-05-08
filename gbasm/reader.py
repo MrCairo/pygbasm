@@ -22,6 +22,9 @@ class Reader (object):
     def set_position(self, position):
         pass
 
+    def filename(self) -> str:
+        pass
+
     def is_eof(self) -> bool:
         return self._eof
 
@@ -44,8 +47,10 @@ class BufferReader (Reader):
 
     def read_line(self) -> str:
         if self._read_position < self._len:
-            next_delim = self._buffer.find(self._delimiter, self._read_position)
-            if self._debug: print(f"Slice = {self._read_position}:{next_delim}")
+            next_delim = self._buffer.find(self._delimiter,
+                                           self._read_position)
+            if self._debug:
+                print(f"Slice = {self._read_position}:{next_delim}")
             if next_delim == -1:
                 self._line = self._buffer[self._read_position:]
                 self._read_position = self._len
@@ -77,6 +82,9 @@ class BufferReader (Reader):
             return True
         return False
 
+    def filename(self) -> str:
+        return "buff_file"
+
 ############################ end of class BufferReader
 
 
@@ -86,10 +94,10 @@ class FileReader (Reader):
     """
     def __init__(self, filename):
         super().__init__()
-        self.filename = filename
+        self._filename = filename
         self._line = ""
         try:
-            self.filestream = open(filename)
+            self._filestream = open(filename)
         except OSError:
             self._eof = True
             print(f"Could not open the file: {filename}")
@@ -98,7 +106,7 @@ class FileReader (Reader):
         """Reads one line from the data source.
         Line is a sequence of bytes ending with \n.
         """
-        self._line = self.filestream.readline()
+        self._line = self._filestream.readline()
         if self._line:
             return self._line
 
@@ -106,13 +114,17 @@ class FileReader (Reader):
         return None
 
     def get_position(self):
-        return self.filestream.tell()
+        return self._filestream.tell()
 
     def set_position(self, position):
-        pos = self.filestream.seek(position)
+        pos = self._filestream.seek(position)
         self._line = ""
         if pos == position:
             self._eof = False
         return pos
+
+    def filename(self) -> str:
+        """Returns the string name of the file being read."""
+        return self._filename
 
 ############################ end of class FileReader

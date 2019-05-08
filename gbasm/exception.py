@@ -44,8 +44,12 @@ class ErrorCode(Enum):
     OPERAND_IS_NOT_NUMERIC = auto()
     MISSING_MACHINE_CODE = auto()
     INVALID_LABEL_NAME = auto()
+    INVALID_LABEL_POSITION = auto()
     INVALID_REGISTER = auto()
     INVALID_REGISTER_POSITION = auto()
+    INVALID_SECTION_POSITION = auto()
+    INVALID_DECLARATION = auto()
+
 
 
 ####################################################################################################
@@ -68,6 +72,9 @@ class Error():
         ErrorCode.INVALID_LABEL_NAME:
         "Error: The label name is not in a valid format.",
 
+        ErrorCode.INVALID_LABEL_POSITION:
+        "Error: The label name is not in a valid position.",
+
         ErrorCode.INVALID_REGISTER:
         "Error: The register is not a valid register",
 
@@ -75,7 +82,16 @@ class Error():
         "Error: The use of the register in this position is invalid",
 
         ErrorCode.OPERAND_IS_NOT_NUMERIC:
-        "Error: The operand was not a valid numeric value"
+        "Error: The operand was not a valid numeric value",
+
+        ErrorCode.INVALID_SECTION_POSITION:
+        """Error: The SECTION declaration must be the first declaration in
+        "the file.""",
+
+        ErrorCode.INVALID_DECLARATION:
+        """The declaration was not a know keyword or instruction or appears
+        with invalid characters or spacing.
+        """
     }
 
     def __init__(self, error_code: int, supplimental: str = "",
@@ -99,12 +115,13 @@ class Error():
 
     @property
     def code(self) -> int:
-        """ Returns the error code passed when creating this Error object. """
+        """ Returns the error code passed when creating this Error object."""
         return self._code
 
     @property
     def supplimental(self) -> str:
-        """ Returns the supplimental text passed when creating this Error object. """
+        """ Returns the supplimental text passed when creating this Error
+        object. """
         return self._supplimental
 
     @property

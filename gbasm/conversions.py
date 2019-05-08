@@ -3,7 +3,6 @@
 #
 import string
 from singleton_decorator import singleton
-from gbasm.constants import Constant
 
 @singleton
 class ExpressionConversion():
@@ -82,44 +81,6 @@ class ExpressionConversion():
         conv = None if key not in self._to_dec else self._to_dec[key]
         if conv:
             return conv(expression)
-        return None
-
-    def placeholder_from_expression(self, expression: str):
-        """
-        Returns a placeholder value indicating whether or not the
-        value is an 8 or 16 bit value. This placeholder is used
-        when looking up an instruction in the InstructionSet class
-        (i.e. 'JP NZ, a16' is recognized, 'JR NZ, $FFD2' is not)
-        """
-        # If the expression is in the form of $0001 then this will
-        # always resolve to a 16-bit address even though the value
-        # is in the 8-bit range. Two digit expressions (like $80)
-        # will always resolve to an 8-bit value.
-        #
-        # if not expression:
-        #     return None
-
-        # if self._is_register(expression):
-        #     if len(expression) == 2:
-        #         return Constant.PLACEHOLDER_16
-        #     return Constant.PLACEHOLDER_8
-
-        # if self._is_hex(expression):
-        #     return Constant.PLACEHOLDER_16 if len(expression) > 3 \
-        #         else Constant.PLACEHOLDER_8
-
-        # if expression[0].isdigit():
-        #     test = self._dec(expression)
-        #     if test is None:
-        #         return None
-
-        # # Everything other than hex values below....
-        # value = self.value_from_expression(expression)
-        # if value:
-        #     if value in range(0, 255):
-        #         return "{8}"
-        #     if value in range(256, 65535):
-        #         return "{16}"
         return None
 
     def can_convert(self, expression):

@@ -90,8 +90,9 @@ class _StorageBase (object):
                 self._data.append(value)
             return size
             print(f"S, V = {size},{value}")
-        raise DefineDataError("Invalid DS parameter(s): "\
-                              "Size must ba number < 1024 and value must be number < 256.")
+        err ="Invalid DS parameter(s): Size must ba number < 1024 and "\
+             "value must be number < 256."
+        raise DefineDataError(err)
 
 
     def _to_bytes(self, data_list):
@@ -118,7 +119,7 @@ class _StorageBase (object):
                     self._data.append(ord(char))
                     bytes_added += 1
                 continue
-            
+
             value = self._conv.value_from_expression(item.strip())
             if value not in range(0,256):
                 raise DefineDataError("DB should only allow byte value from 0x00 to 0xFF.")
@@ -155,18 +156,16 @@ class _StorageBase (object):
 class DataStorage (_StorageBase):
     """
     """
-    
+
     _types = {
         "DS": StorageType.SPACE,
         "DB": StorageType.BYTE,
         "DW": StorageType.WORD,
         "DL": StorageType.LONG
         }
-    
+
     def __init__(self, type_name, list=None):
         if type_name not in DataStorage._types:
             raise DefineDataError("Storage type must be DS, DB, DW, or DL")
         storage_size = DataStorage._types[type_name]
         super().__init__(storage_size, list)
-
-

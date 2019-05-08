@@ -1,17 +1,16 @@
 """
-Z80 Parser
+Z80 Assembler
 """
 import string
 from enum import IntEnum, auto
-
-from gbasm.reader import BufferReader, FileReader
+from gbasm.reader import BufferReader, FileReader, Reader
 from gbasm.section import Section
 from gbasm.exception import ParserException, Error, ErrorCode
 from gbasm.equate import Equate
-from gbasm.instruction import Instruction, InstructionPointer
+from gbasm.instruction import *
 from gbasm.label import Label, Labels
 from gbasm.conversions import ExpressionConversion
-
+import tempfile
 
 class Action(IntEnum):
     """The current state of the parser state machine."""
@@ -29,22 +28,31 @@ class ParserState(IntEnum):
     RESOLVE = auto()
     ASSEMBLE = auto()
 
+EC = ExpressionConversion
 
-class Parser():
+"""
+Need to create some global/local storage (like global.py is now). There
+needs to be a way to identify file-local labels/variables, etc. as well as
+global ones. If a file is 'imported' it could very well define it's own
+local variables as opposed to the file that did the importing. Everything
+is based around the Parser class. Whenever a file is opened, it is
+processed via the Parser class. If the Parser detects an import, that file
+is then opened and another (nested) Parser class is instantiated again, and
+so on.
+"""
+
+
+class Assembler:
+    """The main entrypoint (class) to instantiate in order to compile any
+    Z80 source."""
+
     def __init__(self):
         self.filename = None
         self._buffer = None
         self.reader = None
         self.line_no = 0
-        self.sections = []
-        self.equates = {}
-        self.instructions = []
         self.errors = []
         self.warnings = []
-        self._exp_conv = ExpressionConversion()
-        self._equate_parser = None
-        self._state = ParserState.IDLE
-        self._action = Action.INITIAL
 
     def load_from_file(self, filename):
         self.filename = filename
@@ -55,65 +63,90 @@ class Parser():
         self.reader = BufferReader(self._buffer)
 
     def parse(self):
+        parser = Parser(self.reader)
+        parser.parse()
+
+
+class Parser:
+
+    def __init__(self, reader: Reader, assembler):
+        self._reader = reader
+        self._state = ParserState.IDLE
+        self._action = Action.INITIAL
+        self._tf = tempfile.TemporaryFile()
+        self._fileline = ""
+
+        def __hash__(self):
+            return self._tf.__hash__()
+
+    def parse(self):
         self.line_no = 0
-        self._equate_parser = Equate(self.reader)
-        start_file_pos = self.reader.get_position()
+        self._equate_parser = Equate(self._reader)
+        start_file_pos = self._reader.get_position()
 
         # Pass 1 resolves symbols. Any global symbols are stored
         # in the Global symbols array.
         self._state = ParserState.RESOLVE
-        while self.reader.is_eof() is False:
-            line = self.reader.read_line()
+        self._action = Action.UNDETERMINED
+        while self._reader.is_eof() is False:
+            line = self._reader.read_line()
             if line:
                 line = line.upper().split(";")[0]  # drop comments
                 self.line_no += 1
-                self._preprocess(line)
+                self._fileline = f"{self._reader.filename()}:{self.line_no}"
+                result = self._preprocess(line)
 
         self.line_no = 0
         self._state = ParserState.ASSEMBLE
-        self.reader.set_position(start_file_pos)
-        while self.reader.is_eof() is False:
-            line = self.reader.read_line()
+        self._reader.set_position(start_file_pos)
+        while self._reader.is_eof() is False:
+            line = self._reader.read_line()
             if line and line.strip():
                 line = line.upper().split(";")[0]  # drop comments
                 self.line_no += 1
+                self._fileline = f"{self._reader.filename()}:{self.line_no}"
                 self._assemble(line)
 
     #
     # Pre-process step. Symbol/SECTION/EQU processing.
     #
     def _preprocess(self, line):
-        self._action = Action.UNDETERMINED
-        clean = line.strip()
+        """Preprocesses the line in the file. A return value of None
+        indicates a success, otherwise an Error object is returned."""
 
+        clean = line.strip()
         if not clean:
-            return
+            return None  # Empy line
 
         if clean.startswith("SECTION"):
             if not self._process_section(line):
                 msg = f"Error in parsing section directive. "\
                     "{self.filename}:{self.line_no}"
-                raise ParserException(msg, line_number=self.line_no)
+                return Error(ErrorCode.INVALID_SECTION_POSITION,
+                             source_line=self.line_no)
             self._action = Action.SECTION
-            return
-        if " EQU " in clean:
+        elif " EQU " in clean:
+            if self._action != Action.SECTION and self._action != Action.EQU:
+                raise ParserException("EQU before Section",
+                                      line_number=self.line_no)
             self._action = Action.EQU
             _ = self._process_equate(clean)
-        elif line[0] in Label.first_chars:
+        elif line[0] in Labels.first_chars:
             """
             Test if the label is before a SECTION is defined.
             """
-            msg = "A label cannot appear before a SECTION."
             if not self.sections:
-                raise ParserException(msg,
-                                      line_text=self.filename,
-                                      line_number=self.line_no)
+                msg = "A label cannot appear before a SECTION."
+                return Error(ErrorCode.INVALID_LABEL_POSITION,
+                             supplimental=msg,
+                             source_line=self.line_no)
             words = line.split()
             if words[0].endswith(":") and words[0].startswith("."):
                 self._action = Action.CODE
                 label = Label(words[0], InstructionPointer().location)
                 label.constant = False
                 Labels()[words[0]] = label
+        return None
 
     def _assemble(self, line: str):
         clean: str = line.upper().strip()
@@ -132,10 +165,9 @@ class Parser():
             print(f"Processing {clean[:2]} Line {self.line_no}")
             self._action = Action.STORAGE
             if self._process_storage(clean[3:]) is False:
-                msg = f"Error on line {self.filename}:{self.line_no}"\
-                       "\n>> {clean}"
+                msg = f"Error on line {fileline} \n>> {clean}"
                 raise ParserException(msg, line_number=self.line_no)
-        elif line[0] in Label.first_chars:
+        elif line[0] in Labels.first_chars:
             """
             All the work to process labels was done in the pre-process
             step.  Now, if there is an instruction after the label, we
@@ -160,12 +192,9 @@ class Parser():
                 print(f"UNABLE TO PARSE INSTRUCTION [{clean}]")
         return
 
-    def _to_hex(value):
-        return ExpressionConversion().expression_from_value(value, "$")
-
     def label_def_in_string(self, line: str) -> str:
         # Validate column0. Must not be a space or
-        col0 = None if not string else string[0]
+        col0 = None if not line else line[0]
         if col0 is not None:
             col0 = None if col0 not in Labels.valid_chars else col0
 
@@ -180,7 +209,7 @@ class Parser():
         ins = None
         if line is not None:
             ins = Instruction(line)
-            if ins.parse_result.error:
+            if ins.parse_result.:
                 ph = ins.parse_result.placeholder
                 supp = ins.parse_result.error.supplimental
                 possible_label = supp.strip("(.:)")
@@ -219,7 +248,7 @@ class Parser():
 
     def _process_section(self, line):
         try:
-            section = Section(self.reader)
+            section = Section(self._reader)
         except ParserException:
             msg = f"Parser exception occured {self.filename}:{self.line_no}"
             print(msg)
@@ -229,8 +258,8 @@ class Parser():
                 print(f"\n{section}\n")
                 self.sections.append(section)
                 num_addr, _ = section.address_range
-                str_addr = self._exp_conv.expression_from_value(
-                    num_addr, "$$")  # To 16-bit hex value
+                str_addr = EC.expression_from_value(num_addr,
+                                                    "$$")  # 16-bit hex value
                 InstructionPointer().base_address = str_addr
                 print(f"IP = {InstructionPointer().location}\n")
                 return True
@@ -245,13 +274,14 @@ class Parser():
             Labels().add(label)
             return label
         err = Error(ErrorCode.INVALID_LABEL_NAME,
-                    source_file=self.reader.filename,
-                    source_line=int(self.reader.line))
+                    source_file=self._reader.filename,
+                    source_line=int(self._reader.line))
         self.errors.append(err)
         return None
 
     def _process_storage(self, line):
         print("Storage")
+
 
 
 class Macro(object):
@@ -268,7 +298,7 @@ def _substitute_label(line: str, label: Label, placeholder: str = None) -> str:
     for item in components:
         result = item
         if label.clean_name in item:
-            val = Parser._to_hex(label.value)
+            val = EC.expression_from_value(label.value, "$")
             if val:
                 result = item.replace(label.clean_name, val)
         if result:

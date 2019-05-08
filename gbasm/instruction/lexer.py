@@ -1,17 +1,14 @@
-"""
-These clases are used to parse an individual Z80 instruction
-"""
 import pprint
 from gbasm.conversions import ExpressionConversion
-from gbasm.instruction import InstructionSet
-from gbasm.instruction import Registers
+from gbasm.instruction.instruction_set import InstructionSet
 from gbasm.exception import Error, ErrorCode
+from gbasm.instruction import Registers
 
 EC = ExpressionConversion
 IS = InstructionSet
 
 
-class ParserTokens:
+class LexerTokens:
     """
     A data class that stores the instruction tokens and provides easy
     access to the token values.
@@ -24,7 +21,7 @@ class ParserTokens:
 
     def tokens(self):
         """
-        The raw tokens created by the parser. It still may have values
+        The raw tokens created by the lexer. It still may have values
         even if the instruction parsed was invalid.
         """
         return None if "tok" not in self._tok else self._tok["tok"]
@@ -56,45 +53,66 @@ class ParserTokens:
         ops = None if key not in tok else tok[key]
         return ops
 
-###############################################################################
-
-"""
-{   'addr': '$c4',
-    'bytes': b'\xc4\x12\x00',
-    'cycles': [24, 12],
-    'flags': ['-', '-', '-', '-'],
-    'length': 3,
-    'mnemonic': 'CALL',
-    'operand1': 'NZ',
-    'operand2': 'a16',
-    'placeholder': 'a16'}
-"""
+    # --------========[ End of ParserTokens class ]========-------- #
 
 
-class ParserResults():
+class LexerResults:
     """
     Encapsulates a result from parsing an instruction. This class
     stores the bytearray of the parsed instruction or an error string.
-    A ParseResult object with out the 'data; property being set indicates
-    a failed parse. In this case the 'error' property should contain the
-    error information (via the Error object). A Parseresults object should
-    never be instantiated with both the data and error value set to None.
+    A Lexeresult object with out the 'data; property being set indicates
+    a failed parse. In this case the '*error' properties should contain the
+    error information (via the Error object). All methods return None if
+    it's value doesn't exist either due to no data present.
     """
     _raw: dict = {}
+    _tok: LexerTokens = {}
 
-    def __init__(self, raw_results: dict) -> None:
+    def __init__(self, raw_results: dict, tokens: LexerTokens) -> None:
         self._raw = {} if raw_results is None else raw_results
+        self._tok = {} if tokens is None else tokens
+
+    def lexer_tokens(self) -> LexerTokens:
+        """
+        The tokenized values of the parsed instruction. The presense of tokens
+        does NOT indicate a successful parse of the instruction.
+        """
+        return self._tok
 
     def addr(self) -> str:
+        """
+        Represents the opcode value of the instruction as hex string.
+        Additional operand data does not appear here but instead
+        appears in binary form via the binary() method or in text
+        via the operand1() or operand2() methods.
+        """
         return self._if_found("addr")
 
     def binary(self) -> bytes:
+        """
+        The binary representation of the parsed instruction.
+        """
         return self._if_found("bytes")
 
     def cpu_cycles(self) -> list:
+        """
+        Informational only data that represents the number of CPU Cycles that
+        the instruction takes.
+        """
         return self._if_found("cycles")
 
     def flags(self) -> list:
+        """
+        An array of with the values of the Z, N, H, C CPU flags in that order.
+        Z = Zero flag. A 'Z' indicates that the instruction can result in a
+            zero value.
+        N = Add/Sub flag. N = 1 if the previous operation was a subtract
+        H = Half Cary flag. H = 1 if the add or subtract operation produced a
+            carry into or borrow' from bit 4 of the accumulator.
+        C = Carry/link flag C = 1 if the operltlon produced a carry from the
+            MSB of the operand or result.
+        - = Flag is unaffected by the operation.
+        """
         f = ['-', '-', '-', '-']
         if "flags" in self._raw:
             for (idx, val) in enumerate(self._raw['flags'], start=0):
@@ -103,30 +121,65 @@ class ParserResults():
         return f
 
     def length(self) -> int:
+        """
+        The length in bytes of the instruction. This is the opcode plus
+        value-based operands if present.
+        """
         return self._if_found("length")
 
     def mnemonic(self) -> str:
+        """ The mnemonic (or opcode) of the instruction. """
         return self._if_found("mnemonic")
 
+    def mnemonic_error(self) -> Error:
+        return self._if_found("mnemonic_error")
+
     def operand1(self) -> str:
+        """ The first operand if present. """
         return self._if_found("operand1")
 
     def operand2(self) -> str:
+        """ The second operand if present. """
         return self._if_found("operand2")
 
     def operand1_error(self) -> Error:
+        """
+        Contains the error found when processing operand1. A None
+        indicates that there is no error.
+        """
         return self._if_found("operand1_error")
 
     def operand2_error(self) -> Error:
+        """
+        Contains the error found when processing operand2. A None
+        indicates that there is no error.
+        """
         return self._if_found("operand2_error")
 
     def placeholder(self) -> str:
+        """
+        The placeholder found and processed in the instruction.
+        A placeholder can be one of the following values:
+        d8  = immediate 8 bit data.
+        d16 = immediate 16 bit data.
+        a8  = 8 bit unsigned data, which are added to $FF00 for certain
+              instructions (replacement for missing IN and OUT instructions)
+        a16 = a 16 bit address
+        r8  = 8 bit signed data, which are added to program counter
+        """
         return self._if_found("placeholder")
+
+    def is_valid(self):
+        """
+        Returns true if operand1 or operand2 contains an error.
+        """
+        return self.operand1_error() is not None or \
+            self.operand2_error() is not None
 
     def _if_found(self, key):
         return None if key not in self._raw else self._raw[key]
 
-###############################################################################
+    # --------========[ End of LexerResults class ]========-------- #
 
 
 class InstructionParser:
@@ -135,9 +188,10 @@ class InstructionParser:
         self._final = {}   # Final result dictionary.
         self.state = None
         self._tokens = None
+        self._instruction_in = instruction[:132]
         if instruction:
             self._final = None
-            tok = self._tokenize(instruction)
+            tok = self._tokenize(self._instruction_in)
             if tok:
                 self._final = self._parse(tok)
 
@@ -145,21 +199,24 @@ class InstructionParser:
         pp = pprint.PrettyPrinter(indent=4)
         return pp.pformat(self._final)
 
-    def result(self) -> ParserResults:
+    def result(self) -> LexerResults:
         """
-        Returns the results from the parser in a ParserResults object
+        Returns the results from the lexer in a LexerResults object
         """
-        return ParserResults(self._final)
+        return LexerResults(self._final, self._tokens)
 
     def raw_results(self) -> dict:
         """
-        Returns the raw results from the parser
+        Returns the raw results from the lexer
         """
         return self._final
 
-    def tokens(self) -> ParserTokens:
+    def tokens(self) -> LexerTokens:
         """ Returns the tokenized parsed instruction """
         return self._tokens
+
+    #                                             #
+    # -----=====<  Private Functions  >=====----- #
 
     @staticmethod
     def _explode(instruction: str) -> dict:
@@ -196,16 +253,18 @@ class InstructionParser:
                 ins = IS().instruction_from_mnemonic(exploded["opcode"])
                 result = {"tok": exploded,
                           "ins_def": ins}
-        self._tokens = ParserTokens(result)
+        self._tokens = LexerTokens(result)
         return result
 
     def _parse(self, tokens: dict) -> dict:
         """
         This parses the tokens created in the _tokenize function.
         """
-        if "tok" not in tokens or "ins_def" not in tokens:
-            return None
-        tok = tokens["tok"]       # Tokenized instruction
+        if "tok" not in tokens or tokens["ins_def"] is None:
+            return {"mnemonic": self._instruction_in,
+                    "mnemonic_error":
+                    Error(ErrorCode.INVALID_MNEMONIC)}
+        tok = tokens["tok"]  # Tokenized instruction
         self.state = _State(tokens["ins_def"], {}, "")
         mnemonic = tok["opcode"]
         operands = [] if "operands" not in tok else tok["operands"]
@@ -243,7 +302,7 @@ class InstructionParser:
 
     def _is_within_parens(self, value: str) -> bool:
         clean = value.strip()
-        return (clean.startswith("(") and clean.endswith(")"))
+        return clean.startswith("(") and clean.endswith(")")
 
     @staticmethod
     def _int_to_z80binary(dec_val, little_endian=True, bits=8) -> bytearray:
@@ -295,7 +354,7 @@ class InstructionParser:
         if self.state.is_arg_inside_parens():
             arg = arg.strip("()")
             arg_parens = True
-        dec_val = ExpressionConversion().value_from_expression(arg)
+        dec_val = EC().value_from_expression(arg)
         if dec_val:  # Is this an immediate value?
             placeholder = self._ph_in_list(self.state.roamer.keys(),
                                            parens=arg_parens)
@@ -318,7 +377,6 @@ class InstructionParser:
             self.state.set_operand_to_val(self.state.arg, err)
         return False
 
-
     def _ph_in_list(self, ph_list: list, bits="8", parens=False) -> str:
         """
         For all of the values in the instruction, if any are a placeholder
@@ -337,7 +395,6 @@ class InstructionParser:
             if k.find(sixteen) != -1:
                 ph_key = k
                 break
-
         if ph_key:
             for r in regs["8"]:
                 if ph_key.find(r) >= 0:
@@ -352,9 +409,11 @@ class InstructionParser:
             return ph_key
         return None
 
+    # --------========[ End of InstructionParser class ]========-------- #
+
 
 class _State:
-    """ An internal parser state class """
+    """ An internal lexer state class """
     roamer: dict
     operands: dict
     op_key: str
@@ -440,20 +499,8 @@ class _State:
                     final[item] = self.operands[item]
         return final
 
-#    def make_results(self):
-
-
-###############################################################################
+    # --------========[ End of Insternal _State class ]========-------- #
 
 if __name__ == "__main__":
-    ins = InstructionParser("JP NZ, xxxx")
-    print(ins)
-
-    ins = InstructionParser("LD a, ($ff00)")
-    print(ins)
-
-    ins = InstructionParser("DEC D")
-    print(ins)
-
-    ins = InstructionParser("CALL NZ $12")
-    print(ins)
+    ip = InstructionParser("JRR $80")
+    print(ip)
