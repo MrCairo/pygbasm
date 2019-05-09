@@ -7,7 +7,9 @@ from gbasm.reader import BufferReader, FileReader, Reader
 from gbasm.section import Section
 from gbasm.exception import ParserException, Error, ErrorCode
 from gbasm.equate import Equate
-from gbasm.instruction import *
+from gbasm.instruction import Instruction, InstructionPointer, LexerResults
+from gbasm.instruction import InstructionSet
+from gbasm.resolver import Resolver
 from gbasm.label import Label, Labels
 from gbasm.conversions import ExpressionConversion
 import tempfile
@@ -29,6 +31,8 @@ class ParserState(IntEnum):
     ASSEMBLE = auto()
 
 EC = ExpressionConversion
+IS = InstructionSet
+IP = InstructionPointer
 
 """
 Need to create some global/local storage (like global.py is now). There
@@ -41,6 +45,10 @@ is then opened and another (nested) Parser class is instantiated again, and
 so on.
 """
 
+_instructions: [Instruction] = []
+_clean_lines: list = []
+_errors: list = []
+_sections: list = []
 
 class Assembler:
     """The main entrypoint (class) to instantiate in order to compile any
@@ -69,19 +77,19 @@ class Assembler:
 
 class Parser:
 
-    def __init__(self, reader: Reader, assembler):
+    def __init__(self, reader: Reader):
         self._reader = reader
         self._state = ParserState.IDLE
         self._action = Action.INITIAL
         self._tf = tempfile.TemporaryFile()
         self._fileline = ""
+        self._line_no = 0
 
         def __hash__(self):
             return self._tf.__hash__()
 
     def parse(self):
-        self.line_no = 0
-        self._equate_parser = Equate(self._reader)
+        self._line_no = 0
         start_file_pos = self._reader.get_position()
 
         # Pass 1 resolves symbols. Any global symbols are stored
@@ -92,25 +100,30 @@ class Parser:
             line = self._reader.read_line()
             if line:
                 line = line.upper().split(";")[0]  # drop comments
-                self.line_no += 1
-                self._fileline = f"{self._reader.filename()}:{self.line_no}"
-                result = self._preprocess(line)
+                self._line_no += 1
+                self._fileline = f"{self._reader.filename()}:{self._line_no}"
+                self._preprocess(line)
 
-        self.line_no = 0
+        for (idx, val) in enumerate(_clean_lines):
+            print(f"{idx} {val}")
+        labels = Labels().items()
+        for val in labels.keys():
+            print(labels[val])
+        self._line_no = 0
         self._state = ParserState.ASSEMBLE
         self._reader.set_position(start_file_pos)
         while self._reader.is_eof() is False:
             line = self._reader.read_line()
             if line and line.strip():
                 line = line.upper().split(";")[0]  # drop comments
-                self.line_no += 1
-                self._fileline = f"{self._reader.filename()}:{self.line_no}"
+                self._line_no += 1
+                self._fileline = f"{self._reader.filename()}:{self._line_no}"
                 self._assemble(line)
 
     #
     # Pre-process step. Symbol/SECTION/EQU processing.
     #
-    def _preprocess(self, line):
+    def _preprocess(self, line) -> None:
         """Preprocesses the line in the file. A return value of None
         indicates a success, otherwise an Error object is returned."""
 
@@ -121,35 +134,55 @@ class Parser:
         if clean.startswith("SECTION"):
             if not self._process_section(line):
                 msg = f"Error in parsing section directive. "\
-                    "{self.filename}:{self.line_no}"
-                return Error(ErrorCode.INVALID_SECTION_POSITION,
-                             source_line=self.line_no)
+                    "{self.filename}:{self._line_no}"
+                err = Error(ErrorCode.INVALID_SECTION_POSITION,
+                            source_line=self._line_no)
+                _errors.append(err)
+                return
             self._action = Action.SECTION
+            _clean_lines.append(clean)
         elif " EQU " in clean:
             if self._action != Action.SECTION and self._action != Action.EQU:
                 raise ParserException("EQU before Section",
-                                      line_number=self.line_no)
+                                      line_number=self._line_no)
             self._action = Action.EQU
             _ = self._process_equate(clean)
-        elif line[0] in Labels.first_chars:
+            _clean_lines.append(clean)
+        elif line[0] in Labels().first_chars:
             """
             Test if the label is before a SECTION is defined.
             """
-            if not self.sections:
+            if not len(_sections):
                 msg = "A label cannot appear before a SECTION."
-                return Error(ErrorCode.INVALID_LABEL_POSITION,
-                             supplimental=msg,
-                             source_line=self.line_no)
+                err = Error(ErrorCode.INVALID_LABEL_POSITION,
+                            supplimental=msg,
+                            source_line=self._line_no)
+                _errors.append(err)
+                return
             words = line.split()
             if words[0].endswith(":") and words[0].startswith("."):
-                self._action = Action.CODE
+                label_str = words[0]
+                ins_str = ""
+                if len(words) > 1:
+                    self._action = Action.CODE
+                    for i in range(1, len(words)):
+                        ins_str += words[i] + " "
                 label = Label(words[0], InstructionPointer().location)
                 label.constant = False
                 Labels()[words[0]] = label
-        return None
+                _clean_lines.append(label_str)
+                if len(ins_str):
+                    _clean_lines.append(ins_str)
+        elif line[0] == ' ':
+            exploded = line.strip().split()
+            if IS().is_mnemonic(exploded[0]):
+                _clean_lines.append(clean)
+
+        return
 
     def _assemble(self, line: str):
         clean: str = line.upper().strip()
+        print(f">>> Processing: {line}")
         self._action = Action.UNDETERMINED
 
         if not clean:
@@ -162,12 +195,12 @@ class Parser:
             self._action = Action.EQU
 
         elif clean[:3] in ["DS ", "DB ", "DW ", "DL "]:
-            print(f"Processing {clean[:2]} Line {self.line_no}")
+            print(f"Processing {clean[:2]} Line {self._line_no}")
             self._action = Action.STORAGE
             if self._process_storage(clean[3:]) is False:
-                msg = f"Error on line {fileline} \n>> {clean}"
-                raise ParserException(msg, line_number=self.line_no)
-        elif line[0] in Labels.first_chars:
+                msg = f"Error on line {self._fileline} \n>> {clean}"
+                raise ParserException(msg, line_number=self._line_no)
+        elif line[0] in Labels().first_chars:
             """
             All the work to process labels was done in the pre-process
             step.  Now, if there is an instruction after the label, we
@@ -187,9 +220,11 @@ class Parser:
         # CODE means that it's NOT an EQU or SECTION or if a LABEL was
         # processed.
         if self._action == Action.UNDETERMINED:
-            instruction = self._process_instruction(clean)
-            if instruction is None:
+            ins = self._process_instruction(clean)
+            if ins is None:
                 print(f"UNABLE TO PARSE INSTRUCTION [{clean}]")
+            else:
+                print(ins)
         return
 
     def label_def_in_string(self, line: str) -> str:
@@ -209,29 +244,22 @@ class Parser:
         ins = None
         if line is not None:
             ins = Instruction(line)
-            if ins.parse_result.:
-                ph = ins.parse_result.placeholder
-                supp = ins.parse_result.error.supplimental
-                possible_label = supp.strip("(.:)")
-                label: Label = Labels()[possible_label]
-                if label:
-                    line = _substitute_label(line, label, ph.placeholder)
-                    ins = Instruction(line)
-                else:
-                    ins = None
-        if not ins:
-            ins = Instruction(line)
-        print(ins.instruction)
-        if ins.is_valid():
+            if ins.parse_result().is_valid():
+                print("--- Resolved:")
+                return ins
+            # Make sure the mnemonic is at least valid.
+            if ins.parse_result().mnemonic_error() is None:
+                ins = Resolver().resolve_instruction(ins, IP().location)
+                if ins and ins.is_valid():
+                    print("--- Resolved with label:")
+#            ins = self._process_label(line)
+        if ins and ins.is_valid():
             if address is not None:
                 ins.address = address
-            self.instructions.append(ins)
-            InstructionPointer().move_relative(len(ins.machine_code))
-            print(ins)
+            _instructions.append(ins)
+            IP().move_relative(len(ins.machine_code()))
         else:
-            # Check for and process a label.
-            # If None is returned, it's an invalid instruction.
-            ins = self._process_label(line)
+            print(f"ERROR: {line}")
         return ins
 
     def _process_label(self, line):
@@ -250,16 +278,17 @@ class Parser:
         try:
             section = Section(self._reader)
         except ParserException:
-            msg = f"Parser exception occured {self.filename}:{self.line_no}"
+            fname = self._reader.filename()
+            msg = f"Parser exception occured {fname}:{self._line_no}"
             print(msg)
-            raise ParserException(msg, line_number=self.line_no)
+            raise ParserException(msg, line_number=self._line_no)
         else:
             if section:
                 print(f"\n{section}\n")
-                self.sections.append(section)
+                _sections.append(section)
                 num_addr, _ = section.address_range
-                str_addr = EC.expression_from_value(num_addr,
-                                                    "$$")  # 16-bit hex value
+                str_addr = EC().expression_from_value(num_addr,
+                                                      "$$")  # 16-bit hex value
                 InstructionPointer().base_address = str_addr
                 print(f"IP = {InstructionPointer().location}\n")
                 return True
@@ -268,15 +297,14 @@ class Parser:
     def _process_equate(self, line) -> Label:
         """Process an EQU statement. """
         result = Equate(line).parse()
-        if 'label' in result and 'value' in result:
-            label = Label(result['label'], int(result['value']))
-            label.is_constant = True
-            Labels().add(label)
-            return label
+        if result:
+            result.is_constant = True
+            Labels().add(result)
+            return result
         err = Error(ErrorCode.INVALID_LABEL_NAME,
                     source_file=self._reader.filename,
                     source_line=int(self._reader.line))
-        self.errors.append(err)
+        _errors.append(err)
         return None
 
     def _process_storage(self, line):
@@ -298,7 +326,7 @@ def _substitute_label(line: str, label: Label, placeholder: str = None) -> str:
     for item in components:
         result = item
         if label.clean_name in item:
-            val = EC.expression_from_value(label.value, "$")
+            val = EC().expression_from_value(label.value, "$")
             if val:
                 result = item.replace(label.clean_name, val)
         if result:
@@ -316,7 +344,8 @@ BIGVAL    EQU $C020
 .program_start:
     ld B, $16 ; This is a comment
     ld BC, $FFD2
-    ld a, IMAGES
+    ld A, Images
+    ld (BIGVAL), SP
     LD (BC), A
 
     JR .program_start
@@ -324,9 +353,9 @@ BIGVAL    EQU $C020
     ret
     """
 
-    parser = Parser()
-    parser.load_from_buffer(asm)
-    parser.parse()
+    assembler = Assembler()
+    assembler.load_from_buffer(asm)
+    assembler.parse()
 
     # print(f"Equates: {p.equates}")
     # print("--- BEGIN LABELS DUMP ---")

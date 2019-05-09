@@ -118,6 +118,7 @@ class TestLabelContainer(unittest.TestCase):
         Labels().add(label)
         self.assertIsNotNone(Labels()[label.clean_name])
 
+    # --------========[ End of class ]========-------- #
 
 
 def label_suite():

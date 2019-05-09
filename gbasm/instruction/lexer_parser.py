@@ -32,7 +32,7 @@ class LexerTokens:
         """
         return self._exploded_val("opcode")
 
-    def operands(self) -> str:
+    def operands(self) -> [str]:
         """
         Returns the operands from the tokens
         """
@@ -173,8 +173,8 @@ class LexerResults:
         """
         Returns true if operand1 or operand2 contains an error.
         """
-        return self.operand1_error() is not None or \
-            self.operand2_error() is not None
+        return self.operand1_error() is None and \
+            self.operand2_error() is None
 
     def _if_found(self, key):
         return None if key not in self._raw else self._raw[key]
@@ -268,13 +268,13 @@ class InstructionParser:
         self.state = _State(tokens["ins_def"], {}, "")
         mnemonic = tok["opcode"]
         operands = [] if "operands" not in tok else tok["operands"]
-        for (idx, arg) in enumerate(operands, start=1):
+        for (_, arg) in enumerate(operands, start=1):
             # True if the argument is within parens like "(HL)"
             self.state.arg = arg
             test = self._if_register()
             if test is True:
                 continue
-            if test is False:
+            elif test is not None:
                 break
             if self.state.is_arg_in_roamer():  # A direct match (like NZ)
                 self.state.roam_to_arg()
@@ -283,7 +283,6 @@ class InstructionParser:
             else:  # Not a register or direct match. Maybe a number or label.
                 if self._if_number():
                     continue
-                break
         if "!" in self.state.roamer:
             # This means that the instruction was found and processed
             dec_val = self.state.roamer["!"]
@@ -443,7 +442,7 @@ class _State:
     def is_arg_in_roamer(self, arg=None):
         if arg is not None:
             self.arg = arg
-        return (self.arg in self.roamer)
+        return self.arg in self.roamer
 
     def set_operand_to_val(self, val, err=None):
         self.operands[self.op_key] = val
@@ -479,7 +478,7 @@ class _State:
     def is_arg_inside_parens(self, arg=None):
         if arg is not None:
             self.arg = arg
-        return (self._arg.startswith("(") and self._arg.endswith(")"))
+        return self._arg.startswith("(") and self._arg.endswith(")")
 
     def merge_operands(self, into: dict):
         if into:
@@ -502,5 +501,11 @@ class _State:
     # --------========[ End of Insternal _State class ]========-------- #
 
 if __name__ == "__main__":
-    ip = InstructionParser("JRR $80")
+    ip = InstructionParser("LD (XX), LABEL")
+    print(ip)
+
+    ip = InstructionParser("LD (GGG), SP")
+    print(ip)
+
+    ip = InstructionParser("ADD A, $10")
     print(ip)
