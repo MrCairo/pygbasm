@@ -3,15 +3,17 @@ Z80 Assembler
 """
 import string
 from enum import IntEnum, auto
+import pprint
 from gbasm.reader import BufferReader, FileReader, Reader
 from gbasm.section import Section
 from gbasm.exception import ParserException, Error, ErrorCode
 from gbasm.equate import Equate
-from gbasm.instruction import Instruction, InstructionPointer, LexerResults
+from gbasm.instruction import Instruction, InstructionPointer
 from gbasm.instruction import InstructionSet
 from gbasm.resolver import Resolver
-from gbasm.label import Label, Labels
+from gbasm.label import Label, Labels, is_valid_label
 from gbasm.conversions import ExpressionConversion
+from gbasm.basic_lexer import BasicLexer
 import tempfile
 
 class Action(IntEnum):
@@ -49,6 +51,8 @@ _instructions: [Instruction] = []
 _clean_lines: list = []
 _errors: list = []
 _sections: list = []
+_storage: list = []
+_tokenized: list = []
 
 class Assembler:
     """The main entrypoint (class) to instantiate in order to compile any
@@ -76,6 +80,10 @@ class Assembler:
 
 
 class Parser:
+    _lexer: BasicLexer
+    _line_no = 0
+    _reader: Reader
+    _fileline = ""
 
     def __init__(self, reader: Reader):
         self._reader = reader
@@ -84,6 +92,7 @@ class Parser:
         self._tf = tempfile.TemporaryFile()
         self._fileline = ""
         self._line_no = 0
+        self._lexer = BasicLexer(reader)
 
         def __hash__(self):
             return self._tf.__hash__()
@@ -96,19 +105,11 @@ class Parser:
         # in the Global symbols array.
         self._state = ParserState.RESOLVE
         self._action = Action.UNDETERMINED
-        while self._reader.is_eof() is False:
-            line = self._reader.read_line()
-            if line:
-                line = line.upper().split(";")[0]  # drop comments
-                self._line_no += 1
-                self._fileline = f"{self._reader.filename()}:{self._line_no}"
-                self._preprocess(line)
+        self._lexer.tokenize()
+        p = pprint.PrettyPrinter(indent=4)
+        p.pprint(self._lexer.tokenized_list())
 
-        for (idx, val) in enumerate(_clean_lines):
-            print(f"{idx} {val}")
-        labels = Labels().items()
-        for val in labels.keys():
-            print(labels[val])
+        return
         self._line_no = 0
         self._state = ParserState.ASSEMBLE
         self._reader.set_position(start_file_pos)
@@ -132,7 +133,7 @@ class Parser:
             return None  # Empy line
 
         if clean.startswith("SECTION"):
-            if not self._process_section(line):
+            if self._process_section(line) is None:
                 msg = f"Error in parsing section directive. "\
                     "{self.filename}:{self._line_no}"
                 err = Error(ErrorCode.INVALID_SECTION_POSITION,
@@ -189,7 +190,9 @@ class Parser:
             return
 
         if clean.startswith("SECTION"):
-            self._action = Action.SECTION
+            section = self._find_section(line)
+            if section:
+                self._action = Action.SECTION
 
         elif " EQU " in clean:
             self._action = Action.EQU
@@ -246,11 +249,13 @@ class Parser:
             ins = Instruction(line)
             if ins.parse_result().is_valid():
                 print("--- Resolved:")
+                IP().move_relative(len(ins.machine_code()))
                 return ins
             # Make sure the mnemonic is at least valid.
             if ins.parse_result().mnemonic_error() is None:
                 ins = Resolver().resolve_instruction(ins, IP().location)
                 if ins and ins.is_valid():
+                    IP().move_relative(len(ins.machine_code()))
                     print("--- Resolved with label:")
 #            ins = self._process_label(line)
         if ins and ins.is_valid():
@@ -274,9 +279,10 @@ class Parser:
                 ins.address = existing.offset
         return ins
 
-    def _process_section(self, line):
+
+    def _find_section(self, line: str) -> Section:
         try:
-            section = Section(self._reader)
+            section = Section(line)
         except ParserException:
             fname = self._reader.filename()
             msg = f"Parser exception occured {fname}:{self._line_no}"
@@ -284,15 +290,26 @@ class Parser:
             raise ParserException(msg, line_number=self._line_no)
         else:
             if section:
-                print(f"\n{section}\n")
-                _sections.append(section)
-                num_addr, _ = section.address_range
-                str_addr = EC().expression_from_value(num_addr,
-                                                      "$$")  # 16-bit hex value
-                InstructionPointer().base_address = str_addr
-                print(f"IP = {InstructionPointer().location}\n")
-                return True
-            return False
+                for _, val in enumerate(_sections):
+                    if val.name() == section.name():
+                        return section
+            return None
+
+    def _process_section(self, line) -> Section:
+        try:
+            section = self._find_section(line)
+        except ParserException as parse_exception:
+            raise parse_exception
+        if section is None:
+            section = Section(line)
+            _sections.append(section)
+            num_addr, _ = section.address_range()
+            str_addr = EC().expression_from_value(num_addr,
+                                                  "$$")  # 16-bit hex value
+            InstructionPointer().base_address = str_addr
+            print(f"IP = {InstructionPointer().location}\n")
+            return section
+        return None
 
     def _process_equate(self, line) -> Label:
         """Process an EQU statement. """
@@ -310,7 +327,62 @@ class Parser:
     def _process_storage(self, line):
         print("Storage")
 
+    @staticmethod
+    def _join_parens(line) -> str:
+        new_str = ""
+        paren = 0
+        for c in line:
+            if c == " " and paren > 0:
+                continue
+            if c in "([{":
+                paren += 1
+            elif c in ")]}":
+                paren -= 1
+            paren = max(0, paren) # If Negative set to 0
+            new_str += c
+        return new_str
 
+    @staticmethod
+    def _tokenize_line(line) -> dict:
+        clean = line.strip().split(';')[0]
+        if not clean:
+            return None  # Empy line
+
+        clean_split = clean.split()
+        tokens = {}
+        line = Parser._join_parens(line)
+        if clean.startswith("SECTION"):
+            tokens['directive'] = "SECTION"
+            line = line.replace(',', ' ')
+            tokens['tokens'] = clean.split()
+            return tokens
+        if clean.startswith("EQU "):
+            clean = clean.strip()
+            tokens['directive'] = "EQU"
+            tokens['tokens'] = clean_split
+            return tokens
+        if clean_split[0] in ["DS", "DB", "DW", "DL"]:
+            tokens['directive'] = "STORAGE"
+            tokens['tokens'] = clean_split
+            return tokens
+        if IS().is_mnemonic(clean_split[0]):
+            tokens['directive'] = 'INSTRUCTION'
+            tokens['tokens'] = clean_split
+            return tokens
+        if line[0] in Labels().first_chars:
+            if is_valid_label(clean_split[0]):
+                data = [{"type": "LABEL",
+                         "data": clean_split[0]}]
+                tokens['directive'] = "MULTIPLE"
+                if len(clean_split) > 1:
+                    remainder = ' '.join(clean_split[1:])
+                    more = Parser._tokenize_line(remainder)
+                    data.append(more)
+                tokens['tokens'] = data
+                return tokens
+        tokens['directive'] = "UNKNOWN"
+        tokens['tokens'] = clean.split()
+        return tokens
 
 class Macro(object):
     """
@@ -336,22 +408,35 @@ def _substitute_label(line: str, label: Label, placeholder: str = None) -> str:
 
 if __name__ == "__main__":
     asm = """
-SECTION "NewSection", WRAM0[$C100]
+SECTION "NewSection", WRAM0
+CLOUDS_X: DS 1
+BUILDINGS_X: DS 1
+FLOOR_X: DS 1
+PARALLAX_DELAY_TIMER: DS 1
+FADE_IN_ACTIVE:: DS 1
+FADE_STEP: DS 1
+ALLOW_PARALLAX:: DS 1
+READ_INPUT:: DS 1
+START_PLAY:: DS 1
 
 IMAGES    EQU $10
 BIGVAL    EQU $C020
 
-.program_start:
-    ld B, $16 ; This is a comment
-    ld BC, $FFD2
-    ld A, Images
-    ld (BIGVAL), SP
-    LD (BC), A
+SECTION "game", ROMX
 
-    JR .program_start
-    LD (BIGVAL), A
-    ret
-    """
+.update_game:   ld HL, BIGVAL
+	ld A, (HL)
+	cp $00
+	jr nz, .update_game
+	jr .continue_update_1
+	ld A, (HL)
+	cp $00
+	XOR D
+.continue_update_1:
+	CP H
+	CP L
+	CP A
+"""
 
     assembler = Assembler()
     assembler.load_from_buffer(asm)

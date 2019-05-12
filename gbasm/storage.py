@@ -2,57 +2,47 @@
 ## DS, DB, DW, DL declarations
 #
 
-if __name__ == "__main__":
-    import gbasm_dev
-    gbasm_dev.include_developer_path()
-
 from enum import Enum
 from gbasm.exception import DefineDataError
 from gbasm.conversions import ExpressionConversion
 
 ###############################################################################
 
-###############################################################################
-class StorageType (Enum):
+class StorageType(Enum):
     SPACE = 0
     BYTE = 1
     WORD = 2
     LONG = 3
 
 
-class _StorageBase (object):
-    def __init__(self, size, list=None):
+class _StorageBase:
+    def __init__(self, size, data_set=None):
         self._item_size = size
-        self._list = list
+        self._list = data_set
         self._data = []
         self._conv = ExpressionConversion()
-        if list == None:    # Allocate just one element of StorageType
+        if not data_set:    # Allocate just one element of StorageType
             self._data.append(0)
         else:
             self._parse_list()
-
 
     def __iter__(self):
         self._roamer = 0
         return self
 
-
     def __next__(self):
         if self._roamer >= len(self._data):
-                raise StopIteration
+            raise StopIteration
         item = self._data[self._roamer]
         self._roamer += 1
         return item
 
-
     def item_at_index(self, index):
-        len = len(self._data)
-        return self._data[index] if index < len else None
-
+        return self._data[index] if index < len(self._data) else None
 
     def _parse_list(self):
         if self._list == None:
-            self._bytes.append(0x00)
+            self._data.append(0x00)
         else:
             components = self._list.split(",")
             if self._item_size == StorageType.SPACE:
@@ -63,8 +53,6 @@ class _StorageBase (object):
                 self._to_words(components)
             elif self._item_size == StorageType.LONG:
                 self._to_longs(components)
-        return
-
 
     def _to_space(self, components):
         """
@@ -82,26 +70,26 @@ class _StorageBase (object):
         if len(components) >= 2:
             value = self._conv.value_from_expression(components[1].strip())
         ## Validate
-        valid = (size in range(0,1024))
-        valid = (value in range(0,256))
+        valid = (size in range(0, 1024))
+        valid = (value in range(0, 256))
         if valid:
             self._data = []
             for i in range(0, size):
                 self._data.append(value)
             return size
             print(f"S, V = {size},{value}")
-        err ="Invalid DS parameter(s): Size must ba number < 1024 and "\
-             "value must be number < 256."
+        err = "Invalid DS parameter(s): Size must ba number < 1024 and "\
+              "value must be number < 256."
         raise DefineDataError(err)
-
 
     def _to_bytes(self, data_list):
         in_quotes = False
         bytes_added = 0
         for item in data_list:
             if in_quotes:
-                # If we get a new item and we're still in_quotes, this means that there was
-                # a comma(,) within the string. Just continue processing as a string
+                # If we get a new item and we're still in_quotes, this
+                # means that there was a comma(,) within the string. Just
+                # continue processing as a string
                 item = "," + item
             else:
                 item = item.strip()
@@ -127,7 +115,6 @@ class _StorageBase (object):
             bytes_added += 1
         return bytes_added
 
-
     def _to_words(self, data_list):
         words_added = 0
         for item in data_list:
@@ -137,7 +124,6 @@ class _StorageBase (object):
             self._data.append(num)
             words_added += 1
         return words_added
-
 
     def _to_longs(self, data_list):
         words_added = 0
@@ -149,14 +135,12 @@ class _StorageBase (object):
             words_added += 1
         return words_added
 
-
 ################################ End of class #################################
 ###############################################################################
 
-class DataStorage (_StorageBase):
+class DataStorage(_StorageBase):
     """
     """
-
     _types = {
         "DS": StorageType.SPACE,
         "DB": StorageType.BYTE,
@@ -164,8 +148,8 @@ class DataStorage (_StorageBase):
         "DL": StorageType.LONG
         }
 
-    def __init__(self, type_name, list=None):
+    def __init__(self, type_name, data_set=None):
         if type_name not in DataStorage._types:
             raise DefineDataError("Storage type must be DS, DB, DW, or DL")
         storage_size = DataStorage._types[type_name]
-        super().__init__(storage_size, list)
+        super().__init__(storage_size, data_set)

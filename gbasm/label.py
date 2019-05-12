@@ -55,11 +55,13 @@ class Label():
             self._scope = Label.GLOBAL_SCOPE
         elif name.endswith(":") and name.startswith("."):
             self._scope = Label.LOCAL_SCOPE
-        elif (name[0].isalpha() and name.isalnum()): # Must be an EQU?
+        elif (name[0].isalpha() and _name_valid_chars(name)):
             self._scope = Label.LOCAL_SCOPE
             self._constant = True
         else:
             raise ValueError
+        if name.upper() in ["SECTION", "DS", "DB", "DW", "DL", "EQU"]:
+            raise TypeError
 
         # Label now must be an EQU since it doesn't have a scope character
         # Local/Global scope labels must start with a '.'
@@ -143,6 +145,23 @@ class Label():
         self._base_address = new_value
 
 
+def is_valid_label(name: str):
+    """
+    Returns True if 'name' would represent a valid label.  This function
+    does not check the Labels() container for the given label name.
+    """
+    label = Label(name.strip(), 0x00)  # Can we create a label from it?
+    return label is not None
+
+def _name_valid_chars(line: str):
+    valid = True
+    for c in line:
+        if c in Labels().valid_chars:
+            continue
+        else:
+            valid = False
+            break
+    return valid
 
 ######################################################################
 
@@ -156,7 +175,7 @@ class Labels(dict):
 
     """
     first_chars = string.ascii_letters + "."
-    valid_chars = string.ascii_letters + ".:"
+    valid_chars = string.ascii_letters + ".:_"
 
     _labels = {}
 
