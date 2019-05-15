@@ -1,5 +1,15 @@
 """
 """
+DIR = "directive"
+TOK = "tokens"
+MULT = "MULTIPLE"
+EQU = "EQU"
+LBL = "LABEL"
+INST = "INSTRUCTION"
+STOR = "STORAGE"
+SEC = "SECTION"
+
+
 class Constant:
     PLACEHOLDER_OFFSET = 1048576
     MAX_ADDRESS = 65535

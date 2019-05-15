@@ -24,6 +24,8 @@ class Registers():
 
     def is_valid_register(self, register):
         """Returns True/False if the register provided is a known register."""
-        if register and len(register.strip("() +-")) > 0:
-            return register in self._all_registers
+        if register:
+            clean = register.strip("() +-")
+            if len(clean):
+                return clean in self._all_registers
         return False

@@ -1,4 +1,6 @@
-#
+"""
+Classes to handle labels.
+"""
 #
 #
 # if __name__ == "__main__":
@@ -53,11 +55,13 @@ class Label():
             self._scope = Label.GLOBAL_SCOPE
         elif name.endswith(":") and name.startswith("."):
             self._scope = Label.LOCAL_SCOPE
-        elif (name[0].isalpha() and name.isalnum()): # Must be an EQU?
+        elif (name[0].isalpha() and _name_valid_chars(name)):
             self._scope = Label.LOCAL_SCOPE
             self._constant = True
         else:
             raise ValueError
+        if name.upper() in ["SECTION", "DS", "DB", "DW", "DL", "EQU"]:
+            raise TypeError
 
         # Label now must be an EQU since it doesn't have a scope character
         # Local/Global scope labels must start with a '.'
@@ -77,24 +81,21 @@ class Label():
         is_const = "---"
         is_const = "Yes" if self._constant else "No"
         scope = "local" if self._scope == Label.LOCAL_SCOPE else "global"
-        desc = f"\nLabel: {self.name}\nvalue: 0x{self.value:04x} "
+        desc = f"\nLabel: {self._original_label}\nvalue: 0x{self._value:04x} "
         desc += f"is constant: {is_const}"
         desc += f"\nScope: {scope}"
         return desc
 
-    @property
     def clean_name(self) -> str:
         """Returns the cleaned valid label stripped of the first and
         last label characters"""
         return self._clean_label
 
-    @property
     def name(self) -> str:
         """Returns the original value of the valid label. It will
         start with a '.'"""
         return self._original_label
 
-    @property
     def value(self) -> int:
         """Returns the value passed when the object was created."""
         return self._value
@@ -144,6 +145,23 @@ class Label():
         self._base_address = new_value
 
 
+def is_valid_label(name: str):
+    """
+    Returns True if 'name' would represent a valid label.  This function
+    does not check the Labels() container for the given label name.
+    """
+    label = Label(name.strip(), 0x00)  # Can we create a label from it?
+    return label is not None
+
+def _name_valid_chars(line: str):
+    valid = True
+    for c in line:
+        if c in Labels().valid_chars:
+            continue
+        else:
+            valid = False
+            break
+    return valid
 
 ######################################################################
 
@@ -157,7 +175,7 @@ class Labels(dict):
 
     """
     first_chars = string.ascii_letters + "."
-    valid_chars = string.ascii_letters + ".:"
+    valid_chars = string.ascii_letters + string.digits + ".:_"
 
     _labels = {}
 
@@ -184,7 +202,7 @@ class Labels(dict):
     def __setitem__(self, key: str, value: Label):
         if not isinstance(value, Label):
             raise TypeError
-        self._labels[value.clean_name.upper()] = value
+        self._labels[value.clean_name().upper()] = value
 
     def find(self, key: str) -> Label:
         """Equal to the __get__() index function."""
@@ -195,7 +213,7 @@ class Labels(dict):
         Adds a new Label object to the dictionary.
         """
         if label is not None:
-            self._labels[label.clean_name.upper()] = label
+            self._labels[label.clean_name().upper()] = label
 
     def remove(self, label: Label):
         """
@@ -203,10 +221,10 @@ class Labels(dict):
         used as the key of the element to remove.
         """
         if label is not None:
-            found = self[label.clean_name.upper()]
+            found = self[label.clean_name().upper()]
             if found:
                 new_d = dict(self._labels)
-                del new_d[label.clean_name.upper()]
+                del new_d[label.clean_name().upper()]
                 self._labels = new_d
         return
 

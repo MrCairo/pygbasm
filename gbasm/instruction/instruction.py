@@ -1,7 +1,7 @@
 """
 Class(es) that implements a Z80/LR35902 instruction and Instruction Set
 """
-from gbasm.instruction.lexer import LexerResults, InstructionParser
+from gbasm.instruction.lexer_parser import LexerResults, InstructionParser
 
 
 class Instruction:

@@ -3,7 +3,7 @@
 from typing import NewType
 from enum import Enum, auto
 
-class ParserException (Exception):
+class ParserException(Exception):
     """Base class of exceptions for the parser."""
     def __init__(self, message, line_text=None, line_number=None):
         filename = line_text if line_text is not None else "unk_file"

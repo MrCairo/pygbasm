@@ -31,7 +31,7 @@ class Reader (object):
 # end of class Reader
 
 
-class BufferReader (Reader):
+class BufferReader(Reader):
     """
     A Reader object that takes in a buffer and performs Reader operations on that
     buffer. An optional line_delimiter maybe specified which represents the EOL
@@ -63,16 +63,13 @@ class BufferReader (Reader):
             if self._debug:
                 print(f"line == '{self._line}'")
             return self._line
-        else:
-            self._line = None
-            self._eof = True
+        self._line = None
+        self._eof = True
             #raise EOFError
-
 
     def get_position(self):
         """Returns the current read position in the file."""
         return self._read_position
-
 
     def set_position(self, position) -> bool:
         if position in range(0, self._len): #< self._len and position >= 0:
@@ -83,7 +80,7 @@ class BufferReader (Reader):
         return False
 
     def filename(self) -> str:
-        return "buff_file"
+        return "no_file"
 
 ############################ end of class BufferReader
 
