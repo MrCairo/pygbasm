@@ -1,7 +1,6 @@
 """
 Z80 Assembler
 """
-import string
 from enum import IntEnum, auto
 import pprint
 from gbasm.reader import BufferReader, FileReader, Reader
@@ -14,6 +13,8 @@ from gbasm.resolver import Resolver
 from gbasm.label import Label, Labels, is_valid_label
 from gbasm.conversions import ExpressionConversion
 from gbasm.basic_lexer import BasicLexer
+from gbasm.constants import DIR, TOK, EQU, LBL, INST, STOR, SEC, MULT
+
 import tempfile
 
 class Action(IntEnum):
@@ -108,8 +109,9 @@ class Parser:
         self._lexer.tokenize()
         p = pprint.PrettyPrinter(indent=4)
         p.pprint(self._lexer.tokenized_list())
-
         return
+
+        self._preprocess()
         self._line_no = 0
         self._state = ParserState.ASSEMBLE
         self._reader.set_position(start_file_pos)
@@ -124,61 +126,46 @@ class Parser:
     #
     # Pre-process step. Symbol/SECTION/EQU processing.
     #
-    def _preprocess(self, line) -> None:
+    def _preprocess(self) -> None:
         """Preprocesses the line in the file. A return value of None
         indicates a success, otherwise an Error object is returned."""
-
-        clean = line.strip()
-        if not clean:
-            return None  # Empy line
-
-        if clean.startswith("SECTION"):
-            if self._process_section(line) is None:
-                msg = f"Error in parsing section directive. "\
-                    "{self.filename}:{self._line_no}"
-                err = Error(ErrorCode.INVALID_SECTION_POSITION,
-                            source_line=self._line_no)
-                _errors.append(err)
-                return
-            self._action = Action.SECTION
-            _clean_lines.append(clean)
-        elif " EQU " in clean:
-            if self._action != Action.SECTION and self._action != Action.EQU:
-                raise ParserException("EQU before Section",
-                                      line_number=self._line_no)
-            self._action = Action.EQU
-            _ = self._process_equate(clean)
-            _clean_lines.append(clean)
-        elif line[0] in Labels().first_chars:
-            """
-            Test if the label is before a SECTION is defined.
-            """
-            if not len(_sections):
-                msg = "A label cannot appear before a SECTION."
-                err = Error(ErrorCode.INVALID_LABEL_POSITION,
-                            supplimental=msg,
-                            source_line=self._line_no)
-                _errors.append(err)
-                return
-            words = line.split()
-            if words[0].endswith(":") and words[0].startswith("."):
-                label_str = words[0]
-                ins_str = ""
-                if len(words) > 1:
-                    self._action = Action.CODE
-                    for i in range(1, len(words)):
-                        ins_str += words[i] + " "
-                label = Label(words[0], InstructionPointer().location)
-                label.constant = False
-                Labels()[words[0]] = label
-                _clean_lines.append(label_str)
-                if len(ins_str):
-                    _clean_lines.append(ins_str)
-        elif line[0] == ' ':
-            exploded = line.strip().split()
-            if IS().is_mnemonic(exploded[0]):
-                _clean_lines.append(clean)
-
+        for node in self._lexer.tokenized_list():
+            if node[DIR] == SEC:
+                sec = self._process_section(node[TOK])
+                if sec is None:
+                    msg = f"Error in parsing section directive. "\
+                        "{self.filename}:{self._line_no}"
+                    err = Error(ErrorCode.INVALID_SECTION_POSITION,
+                                supplimental=msg,
+                                source_line=self._line_no)
+                    _errors.append(err)
+                    continue
+            # The MULTIPLE case is when a LABEL is on the same line as some
+            # other data like an instruction. In some cases this is common
+            # like an EQU that is supposed to contain both a LABEL and a
+            # value or less common like a LABEL on the same line as an
+            # INSTRUCTION.
+            if node[DIR] == MULT:
+                tok_list = node[TOK]
+                if len(tok_list) < 2:
+                    err = Error(ErrorCode.INVALID_DECLARATION,
+                                source_line=self._line_no)
+                    _errors.append(err)
+                    continue
+                # Equate has it's own required label. It's not a standard label
+                # in that it can't start with a '.' or end with a ':'
+                if tok_list[1][DIR] == EQU:
+                    self._process_equate(node[TOK])
+                # An instruction is allowed to be on the same line as a label.
+                elif tok_list[1][DIR] == INST:
+                    self._process_instruction(node[TOK])
+                # Storage values can be associated with a label. The label
+                # then can be used almost like an EQU label.
+                elif tok_list[1][DIR] == STOR:
+                    self._process_storage(node[TOK])
+            # Just check for a label on it's own line.
+            if node[DIR] == LBL and len(tok_list) == 1:
+                self._process_label(node)
         return
 
     def _assemble(self, line: str):
@@ -189,7 +176,7 @@ class Parser:
         if not clean:
             return
 
-        if clean.startswith("SECTION"):
+        if clean.startswith(SEC):
             section = self._find_section(line)
             if section:
                 self._action = Action.SECTION
@@ -267,18 +254,23 @@ class Parser:
             print(f"ERROR: {line}")
         return ins
 
-    def _process_label(self, line):
-        clean = line.strip("(.:)")
-        ins = None
-        existing: Label = Labels()[clean]
+    def _process_label(self, node: dict, value=None):
+        if not len(node):
+            return None
+        if DIR not in node or TOK not in node:
+            return None
+        if node[DIR] != LBL:
+            return None
+        clean = node[TOK].strip("()")
+        existing = Labels()[clean]
         if existing:
-            print(f"Found label: {existing}")
-            new_line = line.replace(clean, str(existing.offset()))
-            ins = Instruction(new_line)
-            if ins and line.startswith("."):
-                ins.address = existing.offset
-        return ins
-
+            return None
+        loc = value
+        if not value:
+            loc = IP().location
+        label = Label(clean, loc)
+        Labels().add(label)
+        return label
 
     def _find_section(self, line: str) -> Section:
         try:
@@ -295,37 +287,54 @@ class Parser:
                         return section
             return None
 
-    def _process_section(self, line) -> Section:
+    def _process_section(self, tokens: dict) -> Section:
+        if not tokens or (tokens and tokens[0] != SEC):
+            return None
+        if len(tokens) < 3:
+            return None
         try:
-            section = self._find_section(line)
-        except ParserException as parse_exception:
-            raise parse_exception
-        if section is None:
-            section = Section(line)
-            _sections.append(section)
-            num_addr, _ = section.address_range()
+            section = self._find_section(' '.join(tokens))
+        except ParserException:
+            return None
+        if section is None:  # not found, create a new one.
+            secn = Section(tokens)
+            _sections.append(secn)
+            num_addr, _ = secn.address_range()
             str_addr = EC().expression_from_value(num_addr,
                                                   "$$")  # 16-bit hex value
             InstructionPointer().base_address = str_addr
-            print(f"IP = {InstructionPointer().location}\n")
-            return section
+            return secn
         return None
 
-    def _process_equate(self, line) -> Label:
+    def _process_equate(self, tokens: list) -> Label:
         """Process an EQU statement. """
-        result = Equate(line).parse()
+        # The tokens should always be multiple since an EQU contains
+        # a label followed by the EQU to associate with the label
+        if len(tokens) < 2:
+            return None
+        if tokens[0][DIR] != 'LABEL':
+            return None
+        if tokens[1][DIR] != 'EQU':
+            return None
+        result = Equate(tokens)
         if result:
-            result.is_constant = True
-            Labels().add(result)
-            return result
+            result.parse()
+            lbl = Label(result.name(), result.value(), force_const=True)
+            Labels().add(lbl)
+            return lbl
         err = Error(ErrorCode.INVALID_LABEL_NAME,
                     source_file=self._reader.filename,
                     source_line=int(self._reader.line))
         _errors.append(err)
         return None
 
-    def _process_storage(self, line):
-        print("Storage")
+    def _process_storage(self, node: dict):
+        if not node:
+            return
+        if DIR not in node or TOK not in node:
+            return
+        if node[DIR] not in ["DS", "DB", "DW", "DL"]:
+            return
 
     @staticmethod
     def _join_parens(line) -> str:
@@ -351,37 +360,37 @@ class Parser:
         clean_split = clean.split()
         tokens = {}
         line = Parser._join_parens(line)
-        if clean.startswith("SECTION"):
-            tokens['directive'] = "SECTION"
+        if clean.startswith(SEC):
+            tokens[DIR] = SEC
             line = line.replace(',', ' ')
-            tokens['tokens'] = clean.split()
+            tokens[TOK] = clean.split()
             return tokens
         if clean.startswith("EQU "):
             clean = clean.strip()
-            tokens['directive'] = "EQU"
-            tokens['tokens'] = clean_split
+            tokens[DIR] = "EQU"
+            tokens[TOK] = clean_split
             return tokens
         if clean_split[0] in ["DS", "DB", "DW", "DL"]:
-            tokens['directive'] = "STORAGE"
-            tokens['tokens'] = clean_split
+            tokens[DIR] = STOR
+            tokens[TOK] = clean_split
             return tokens
         if IS().is_mnemonic(clean_split[0]):
-            tokens['directive'] = 'INSTRUCTION'
-            tokens['tokens'] = clean_split
+            tokens[DIR] = INST
+            tokens[TOK] = clean_split
             return tokens
         if line[0] in Labels().first_chars:
             if is_valid_label(clean_split[0]):
-                data = [{"type": "LABEL",
+                data = [{"type": LBL,
                          "data": clean_split[0]}]
-                tokens['directive'] = "MULTIPLE"
+                tokens[DIR] = "MULTIPLE"
                 if len(clean_split) > 1:
                     remainder = ' '.join(clean_split[1:])
                     more = Parser._tokenize_line(remainder)
                     data.append(more)
-                tokens['tokens'] = data
+                tokens[TOK] = data
                 return tokens
-        tokens['directive'] = "UNKNOWN"
-        tokens['tokens'] = clean.split()
+        tokens[DIR] = "UNKNOWN"
+        tokens[TOK] = clean.split()
         return tokens
 
 class Macro(object):
@@ -408,8 +417,8 @@ def _substitute_label(line: str, label: Label, placeholder: str = None) -> str:
 
 if __name__ == "__main__":
     asm = """
-SECTION "NewSection", WRAM0
-CLOUDS_X: DS 1
+SECTION "CoolStuff",ROMX[$4567],BANK[3]
+CLOUDS_X: DB $FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00
 BUILDINGS_X: DS 1
 FLOOR_X: DS 1
 PARALLAX_DELAY_TIMER: DS 1

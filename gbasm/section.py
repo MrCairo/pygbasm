@@ -5,6 +5,7 @@
 import string
 from collections import namedtuple
 from gbasm.exception import SectionDeclarationError, SectionTypeError
+from gbasm.basic_lexer import BasicLexer
 
 ###############################################################################
 
@@ -62,10 +63,10 @@ class Section:
     # must be the line with the SECTION keyword. If not, this class will be
     # considered invalid.
     #
-    def __init__(self, line: str):
+    def __init__(self, tokens: dict):
         self._sec_name = ""
-        self._line = line
-        self._parser = SectionParser(line)
+        self._tokens = tokens
+        self._parser = SectionParser(tokens)
         self._parsed = self._parser.parsed_data()
         self._storage = bytearray()
 
@@ -76,6 +77,17 @@ class Section:
                    f"Address Range '{start:04X} - {end:04X}'\n"
             return desc
         return "None"
+
+    @classmethod
+    def from_string(cls, text: str):
+        "Initialize Section from a string"
+        tok = BasicLexer.from_text(text)
+        tok.tokenize()
+        tok_list = tok.tokenized_list()
+        if len(tok_list):
+            if tok_list[0]['directive'] == "SECTION":
+                return cls(tok_list[0]['tokens'])
+        return cls({})
 
     def name(self) -> str:
         """Returns the name of this section."""
@@ -104,11 +116,11 @@ class Section:
 class SectionParser:
     """Parses a possible SECTION line """
     _data: dict
-    _line: str
+    _tokens: dict
     _sec_type: SectionType
 
-    def __init__(self, line: str):
-        self._line = line
+    def __init__(self, tokens: dict):
+        self._tokens = tokens
         self._sec_type = SectionType()
         try:
             self._data = self._parse_line()
@@ -125,18 +137,23 @@ class SectionParser:
         return self._sec_type
 
     def is_section(self):
-        return self._line.upper().startswith("SECTION")
+        if len(self._tokens) < 3:
+            return False
+        if self._tokens[0].upper() != "SECTION":
+            return False
+        return True
 
     # -----=====< End of public section >=====----- #
 
     def _parse_line(self) -> dict:
-        line = self._line.strip().split(';')[0]
-        parsed = self._validate_line(line)
+        if not self.is_section():
+            return None
+        parsed = self._validate()
         if parsed:
             self._parsed = parsed
         return parsed
 
-    def _validate_line(self, line) -> dict:
+    def _validate(self) -> dict:
         """
         SECTION "SectionNameInQuotes", ROMX[$4000],BANK[3]
         """
@@ -149,20 +166,18 @@ class SectionParser:
         #
         if self.is_section():
             result = {}
-            components = line.split(",", maxsplit=1)
-            section = SectionParser._get_section_and_name(components[0])
+            sec = self._get_section_and_name()
             # There should be at least 2 elements. Any less represents an error
 
-            if section is None or len(components) != 2:
-                print(components)
+            if sec is None:
                 raise SectionDeclarationError("Invalid Section format.",
                                               line_text=line)
             # ['"sectionName"', "ROMX", "BANK[3]"]
-            result["name"] = section["name"]
+            result['name'] = sec['name']
             # Get the symbols. There needs to be at least one.
             symbols = []  # An array of Dictionaries: { 'symbol':'ROMX',
                           #                             'param':'$4000'}
-            args = components[1].strip().split(",")
+            args = self._tokens[2:]
             for x in range(len(args)):
                 sym_dict = {"symbol":'', 'param':''}
                 sym = args[x].split('[')
@@ -177,25 +192,16 @@ class SectionParser:
             result['address_range'] = self._compute_address(symbols)
         return result
 
-    @staticmethod
-    def _get_section_and_name(text):
-        """String should look like SECTION "SectionName" or
-        SECTION 'SectionName'"""
+    def _get_section_and_name(self):
+        """Tokens 0 should be SECTION and tokens[1] == the name"""
         result = {}
 
-        parts = text.split(" ", maxsplit=1)
-        # There should be 2 elements. If _text_ doesn't contain any spaces
-        # parts will have only 1 element which is an error.
-        if len(parts) == 2 and "SECTION" in parts[0].upper():
-            result["label"] = parts[0].strip().upper()
-        else:
-            return None
-        name = parts[1].strip().strip("\"'")
+        name = self._tokens[1].strip().strip("\"'")
         valid = string.ascii_letters + "_"
         valid_name = all((item in valid) for item in name)
         if not valid_name:
             return None
-        result["name"] = name
+        result['name'] = name
         return result
 
     def _compute_address(self, section_info) -> SectionAddress:
@@ -216,5 +222,5 @@ class SectionParser:
 
 if __name__ == "__main__":
     line = 'SECTION "game_vars", WRAM0[$C100]'
-    section = Section(line)
+    section = Section.from_string(line)
     print(section)

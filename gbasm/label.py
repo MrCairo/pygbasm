@@ -175,7 +175,7 @@ class Labels(dict):
 
     """
     first_chars = string.ascii_letters + "."
-    valid_chars = string.ascii_letters + ".:_"
+    valid_chars = string.ascii_letters + string.digits + ".:_"
 
     _labels = {}
 

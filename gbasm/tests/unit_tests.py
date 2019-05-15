@@ -36,16 +36,16 @@ class TestLabelMethods(unittest.TestCase):
 
     def test_label_clean_name(self):
         label = Label(".CamelCase::", 0xff)
-        self.assertEqual(label.clean_name, "CamelCase")
+        self.assertEqual(label.clean_name(), "CamelCase")
 
     def test_label_original_name(self):
         key = ".CamelCase::"
         label = Label(key, 0xab)
-        self.assertEqual(label.name, key)
+        self.assertEqual(label.name(), key)
 
     def test_label_value(self):
         label = Label("TestConstant", 0xffd2)
-        self.assertEqual(label.value, 0xffd2)
+        self.assertEqual(label.value(), 0xffd2)
 
     def test_label_default_const(self):
         label = Label("ShouldBeConst", 255)
@@ -116,7 +116,7 @@ class TestLabelContainer(unittest.TestCase):
         key = ".GOTO_LABEL::"
         label = Label(key, 0x1000)
         Labels().add(label)
-        self.assertIsNotNone(Labels()[label.clean_name])
+        self.assertIsNotNone(Labels()[label.clean_name()])
 
     # --------========[ End of class ]========-------- #
 
