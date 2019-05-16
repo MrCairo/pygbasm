@@ -5,6 +5,7 @@ from enum import IntEnum, auto
 import pprint
 from gbasm.reader import BufferReader, FileReader, Reader
 from gbasm.section import Section
+from gbasm.storage import Storage
 from gbasm.exception import ParserException, Error, ErrorCode
 from gbasm.equate import Equate
 from gbasm.instruction import Instruction, InstructionPointer
@@ -12,8 +13,8 @@ from gbasm.instruction import InstructionSet
 from gbasm.resolver import Resolver
 from gbasm.label import Label, Labels, is_valid_label
 from gbasm.conversions import ExpressionConversion
-from gbasm.basic_lexer import BasicLexer
-from gbasm.constants import DIR, TOK, EQU, LBL, INST, STOR, SEC, MULT
+from gbasm.basic_lexer import BasicLexer, is_node_valid, is_multiple_node
+from gbasm.constants import DIR, TOK, EQU, LBL, INST, STOR, SEC
 
 import tempfile
 
@@ -109,9 +110,9 @@ class Parser:
         self._lexer.tokenize()
         p = pprint.PrettyPrinter(indent=4)
         p.pprint(self._lexer.tokenized_list())
+        self._preprocess()
         return
 
-        self._preprocess()
         self._line_no = 0
         self._state = ParserState.ASSEMBLE
         self._reader.set_position(start_file_pos)
@@ -145,24 +146,26 @@ class Parser:
             # like an EQU that is supposed to contain both a LABEL and a
             # value or less common like a LABEL on the same line as an
             # INSTRUCTION.
-            if node[DIR] == MULT:
+            if is_multiple_node(node):
                 tok_list = node[TOK]
                 if len(tok_list) < 2:
                     err = Error(ErrorCode.INVALID_DECLARATION,
                                 source_line=self._line_no)
                     _errors.append(err)
                     continue
+                if tok_list[0][DIR] == LBL:
+                    self._process_label(tok_list[0])
                 # Equate has it's own required label. It's not a standard label
                 # in that it can't start with a '.' or end with a ':'
                 if tok_list[1][DIR] == EQU:
                     self._process_equate(node[TOK])
                 # An instruction is allowed to be on the same line as a label.
                 elif tok_list[1][DIR] == INST:
-                    self._process_instruction(node[TOK])
+                    self._process_instruction(tok_list[1])
                 # Storage values can be associated with a label. The label
                 # then can be used almost like an EQU label.
                 elif tok_list[1][DIR] == STOR:
-                    self._process_storage(node[TOK])
+                    self._process_storage(tok_list[1])
             # Just check for a label on it's own line.
             if node[DIR] == LBL and len(tok_list) == 1:
                 self._process_label(node)
@@ -229,7 +232,12 @@ class Parser:
         parts = line.split(" ")
         return parts[0]
 
-    def _process_instruction(self, line: str):
+
+    def _process_instruction(self, node: dict):
+        print(node)
+        pass
+
+    def _process_instruction_line(self, line: str):
         address = None
         ins = None
         if line is not None:
@@ -331,10 +339,7 @@ class Parser:
     def _process_storage(self, node: dict):
         if not node:
             return
-        if DIR not in node or TOK not in node:
-            return
-        if node[DIR] not in ["DS", "DB", "DW", "DL"]:
-            return
+        storage = Storage(node)
 
     @staticmethod
     def _join_parens(line) -> str:

@@ -2,12 +2,14 @@
 Class(es) that implements a Z80/LR35902 instruction and Instruction Set
 """
 from gbasm.instruction.lexer_parser import LexerResults, InstructionParser
+from gbasm.basic_lexer import BasicLexer, is_node_valid
 
 
 class Instruction:
     """ Encapsulates an individual Z80 instruction """
 
-    def __init__(self, instruction: str):
+    def __init__(self, tokens: dict):
+        instruction = tokens
         instruction = instruction.upper()
         clean = instruction.strip()
         self.instruction = clean.split(';')[0]
@@ -15,6 +17,15 @@ class Instruction:
         self._tokens = ip.tokens()
         self._lex_results: LexerResults = ip.result()
         self._placeholder_string = None
+
+
+    @classmethod
+    def from_text(cls, text: str):
+        lex = BasicLexer.from_text(text)
+        if lex:
+            lex.tokenize()
+            return cls(lex.tokenized_list())
+        return cls({})
 
     def __repr__(self):
         desc = "   Mnemonic = " + self.mnemonic() + "\n"

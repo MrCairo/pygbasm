@@ -3,7 +3,10 @@ Z80 Assembler
 """
 from gbasm.reader import Reader, BufferReader
 from gbasm.instruction import InstructionSet
-from gbasm.label import Labels, is_valid_label
+from gbasm.label import is_valid_label, valid_label_chars
+from gbasm.label import valid_label_first_char
+from gbasm.constants import DIR, TOK, MULT, STOR, INST, LBL
+
 
 IS = InstructionSet
 
@@ -68,30 +71,60 @@ class BasicLexer:
         clean = BasicLexer._join_parens(line)
         clean_split = clean.replace(',', ' ').split()
         if clean_split[0] in directives:
-            tokens['directive'] = clean_split[0]
-            tokens['tokens'] = clean_split
+            tokens[DIR] = clean_split[0]
+            tokens[TOK] = clean_split
             return tokens
         if clean_split[0] in ["DS", "DB", "DW", "DL"]:
-            tokens['directive'] = "STORAGE"
-            tokens['tokens'] = clean_split
+            tokens[DIR] = STOR
+            tokens[TOK] = clean_split
             return tokens
         if IS().is_mnemonic(clean_split[0]):
-            tokens['directive'] = 'INSTRUCTION'
-            tokens['tokens'] = clean_split
+            tokens[DIR] = INST
+            tokens[TOK] = clean_split
             return tokens
-        if line[0] in Labels().first_chars:
+        if line[0] in valid_label_first_char():
             if is_valid_label(clean_split[0]):
-                tokens['directive'] = 'LABEL'
+                tokens[DIR] = LBL
                 data = clean_split
                 if len(clean_split) > 1:
-                    data = [{"directive": "LABEL",
-                             "tokens": clean_split[0]}]
-                    tokens['directive'] = "MULTIPLE"
+                    data = [{DIR: LBL, TOK: clean_split[0]}]
+                    tokens[DIR] = MULT
                     remainder = ' '.join(clean_split[1:])
                     more = BasicLexer._tokenize_line(remainder)
                     data.append(more)
-                tokens['tokens'] = data
+                tokens[TOK] = data
                 return tokens
-        tokens['directive'] = "UNKNOWN"
-        tokens['tokens'] = clean.split()
+        tokens[DIR] = "UNKNOWN"
+        tokens[TOK] = clean.split()
         return tokens
+
+    # --------========[ End of class ]========-------- #
+
+
+def is_node_valid(node: dict) -> bool:
+    """
+    Returns True if the provided node contains a directive and token.
+    """
+    result = False
+    if node:
+        if DIR in node and TOK in node:
+            result = True
+    return result
+
+def is_multiple_node(node: dict) -> bool:
+    """
+    Returns True if the provided node is valid and contains other nodes
+    with the 'tokens' key.
+    """
+    if not is_node_valid(node):
+        return False
+    nodes = None
+    result = False
+    if node[DIR] == MULT:
+        nodes = node[TOK]
+    if nodes:
+        for n in nodes:
+            result = is_node_valid(n)
+            if not result:
+                break
+    return result

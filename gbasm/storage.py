@@ -4,7 +4,9 @@
 
 from enum import Enum
 from gbasm.exception import DefineDataError
-from gbasm.conversions import ExpressionConversion
+from gbasm.conversions import ExpressionConversion as EC
+from gbasm.basic_lexer import BasicLexer, is_node_valid
+from gbasm.constants import DIR, TOK, STOR
 
 ###############################################################################
 
@@ -15,44 +17,138 @@ class StorageType(Enum):
     LONG = 3
 
 
-class _StorageBase:
-    def __init__(self, size, data_set=None):
-        self._item_size = size
-        self._list = data_set
-        self._data = []
-        self._conv = ExpressionConversion()
-        if not data_set:    # Allocate just one element of StorageType
-            self._data.append(0)
-        else:
-            self._parse_list()
+class Storage:
+    _roamer = 0
+    _parser = None
+    _tok: dict
+
+    def __init__(self, node: dict):
+        self._parser = None
+        if node[DIR] == STOR:
+            self._tok = node[TOK]
+            self._parser = StorageParser(node)
+            return
+        raise DefineDataError("The directive should be STORAGE but isn't")
+
+    @classmethod
+    def from_text(cls, text: str):
+        """
+        Creates a Storage object from a line of text containing the Storage
+        directives
+        """
+        if text:
+            tok = BasicLexer.from_text(text)
+            tok.tokenize()
+            return cls(tok.tokenized_list()[0])
+        return cls({})
+
+    def __repr__(self):
+        return self._parser.__repr__()
 
     def __iter__(self):
         self._roamer = 0
         return self
 
     def __next__(self):
-        if self._roamer >= len(self._data):
+        if self._roamer >= len(self._parser):
             raise StopIteration
-        item = self._data[self._roamer]
+        item = self._parser.data()[self._roamer]
         self._roamer += 1
         return item
 
-    def item_at_index(self, index):
-        return self._data[index] if index < len(self._data) else None
+    def __getitem__(self, position):
+        return self._parser[position]
 
-    def _parse_list(self):
-        if self._list == None:
-            self._data.append(0x00)
-        else:
-            components = self._list.split(",")
-            if self._item_size == StorageType.SPACE:
-                self._to_space(components)
-            elif self._item_size == StorageType.BYTE:
-                self._to_bytes(components)
-            elif self._item_size == StorageType.WORD:
-                self._to_words(components)
-            elif self._item_size == StorageType.LONG:
-                self._to_longs(components)
+    def __len__(self):
+        return len(self._parser)
+
+    def to_bytes(self):
+        return self._parser.data()
+
+
+class StorageParser:
+    """
+    Parses storage types in tokenized format.
+    """
+    _data: bytearray
+    _tok: dict = {}
+    _types = {
+        "DS": StorageType.SPACE,
+        "DB": StorageType.BYTE,
+        "DW": StorageType.WORD,
+        "DL": StorageType.LONG
+        }
+    _storage_size = 0
+
+    def __init__(self, node: dict):
+        self._data = None
+        if is_node_valid(node):
+            self._tok = node[TOK]
+            type_name = self._tok[0]
+            if type_name not in self._types:
+                raise DefineDataError("Storage type must be DS, DB, DW, or DL")
+            self._storage_size = self._types[type_name]
+            self._data = bytearray()
+            self._parse()
+
+    def __repr__(self):
+        desc = "No Data"
+        if self._data:
+            desc = f"Type: {self._tok[0]}\n"
+            desc += "Hex data:\n"
+            desc += "  "
+            col = 0
+            for val in self._data:
+                if self._tok[0] == "DW":
+                    desc += f"{val:04x} "
+                elif self._tok[0] == "DL":
+                    desc += f"{val:08x} "
+                    col += 1  # This reduces the number of cols
+                else:
+                    desc += f"{val:02x} "
+                col += 1
+                if col > 7:
+                    desc += "\n"
+                    desc += "  "
+                    col = 0
+            desc += "\n"
+        return desc
+
+    def __len__(self):
+        if self._data:
+            return len(self._data)
+        return None
+
+    def __getitem__(self, position: int):
+        return self._data[position]  # if position < len(self) else None
+
+
+    def type(self):
+        """
+        Returns the string type of this storage object. This can be DS, DB,
+        DW, or DL.
+        """
+        if self._data:
+            return self._tok[0]
+        return None
+
+    def data(self):
+        """Returns the storage data as an array of bytes."""
+        return bytes(self._data)
+
+
+    # -----=====< End of public methods >=====----- #
+
+    def _parse(self):
+        components = self._tok[1:]
+        if self._storage_size == StorageType.SPACE:
+            self._to_space(components)
+        elif self._storage_size == StorageType.BYTE:
+            self._to_bytes(components)
+        elif self._storage_size == StorageType.WORD:
+            self._to_words(components)
+        elif self._storage_size == StorageType.LONG:
+            self._to_longs(components)
 
     def _to_space(self, components):
         """
@@ -66,9 +162,9 @@ class _StorageBase:
         size = 1
         value = 0
         if len(components) >= 1:
-            size = self._conv.value_from_expression(components[0].strip())
+            size = EC().value_from_expression(components[0].strip())
         if len(components) >= 2:
-            value = self._conv.value_from_expression(components[1].strip())
+            value = EC().value_from_expression(components[1].strip())
         ## Validate
         valid = (size in range(0, 1024))
         valid = (value in range(0, 256))
@@ -96,7 +192,8 @@ class _StorageBase:
                 # A string can be defined in a DB
                 if item.startswith('"'):
                     if in_quotes:
-                        raise DefineDataError("A String cannot contain a string")
+                        msg = "A String cannot contain a string"
+                        raise DefineDataError(msg)
                     in_quotes = True
                     item = item[1:]
             if in_quotes:
@@ -108,9 +205,10 @@ class _StorageBase:
                     bytes_added += 1
                 continue
 
-            value = self._conv.value_from_expression(item.strip())
-            if value not in range(0,256):
-                raise DefineDataError("DB should only allow byte value from 0x00 to 0xFF.")
+            value = EC().value_from_expression(item.strip())
+            if not 256 > value >= 0:
+                msg = "DB should only allow byte value from 0x00 to 0xFF"
+                raise DefineDataError(msg)
             self._data.append(value)
             bytes_added += 1
         return bytes_added
@@ -118,9 +216,10 @@ class _StorageBase:
     def _to_words(self, data_list):
         words_added = 0
         for item in data_list:
-            num = self._conv.value_from_expression(item.strip())
-            if num < 0 or num > 65535:
-                raise DefineDataError(f"DB should only allow byte value from 0x00 to 0xFFFF.")
+            num = EC().value_from_expression(item.strip())
+            if not 65536 > num >= 0:
+                msg = f"DB should only allow byte value from 0x00 to 0xFFFF"
+                raise DefineDataError(msg)
             self._data.append(num)
             words_added += 1
         return words_added
@@ -128,28 +227,18 @@ class _StorageBase:
     def _to_longs(self, data_list):
         words_added = 0
         for item in data_list:
-            num = self._conv.value_from_expression(item.strip())
-            if num < 0 or num > 4294967295:
-                raise DefineDataError("DB should only allow byte value from 0x00 to 0xFFFFFFFF.")
+            num = EC().value_from_expression(item.strip())
+            if not 4294967295 > num >= 0:
+                msg = "DB should only allow byte value from 0x00 to 0xFFFFFFFF"
+                raise DefineDataError(msg)
             self._data.append(num)
             words_added += 1
         return words_added
 
+
 ################################ End of class #################################
 ###############################################################################
 
-class DataStorage(_StorageBase):
-    """
-    """
-    _types = {
-        "DS": StorageType.SPACE,
-        "DB": StorageType.BYTE,
-        "DW": StorageType.WORD,
-        "DL": StorageType.LONG
-        }
-
-    def __init__(self, type_name, data_set=None):
-        if type_name not in DataStorage._types:
-            raise DefineDataError("Storage type must be DS, DB, DW, or DL")
-        storage_size = DataStorage._types[type_name]
-        super().__init__(storage_size, data_set)
+if __name__ == "__main__":
+    s = Storage.from_text("DB $01, $02, $03, $04, $05, $06, $07, $07, $ff, $ff")
+    print(s)

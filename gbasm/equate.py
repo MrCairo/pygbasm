@@ -31,8 +31,8 @@ class Equate:
     def from_string(cls, line: str):
         if line:
             tok = BasicLexer.from_text(line)
-            tok.tokenize()
             if tok:
+                tok.tokenize()
                 return cls(tok.tokenized_list())
         return cls({})
 

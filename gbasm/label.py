@@ -9,7 +9,7 @@ Classes to handle labels.
 
 import string
 from singleton_decorator import singleton
-from gbasm.instruction import InstructionPointer
+from gbasm.instruction.instruction_pointer import InstructionPointer
 
 
 ###############################################################################
@@ -152,6 +152,12 @@ def is_valid_label(name: str):
     """
     label = Label(name.strip(), 0x00)  # Can we create a label from it?
     return label is not None
+
+def valid_label_chars():
+    return string.ascii_letters + string.digits + ".:_"
+
+def valid_label_first_char():
+    return string.ascii_letters + "."
 
 def _name_valid_chars(line: str):
     valid = True
