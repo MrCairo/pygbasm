@@ -40,10 +40,12 @@ class Resolver():
             }
         if current_address < 0 or current_address > 65535:
             return instruction
-
         lex: LexerResults = instruction.parse_result()
         if lex and lex.mnemonic_error() is None:
             base = lex.mnemonic()
+            if base not in self._jump_table:
+                return instruction
+
             opcode_func = self._jump_table[base]
             if opcode_func:
                 resolved = opcode_func(lex)
@@ -149,9 +151,9 @@ def op_jr(lex: LexerResults) -> Instruction:
             else:
                 return None
     if len(args) == 2:
-        return Instruction(f"JR {args[0]}, {args[1]}")
+        return Instruction.from_text(f"JR {args[0]}, {args[1]}")
     else:
-        return Instruction(f"JR {args[0]}")
+        return Instruction.from_text(f"JR {args[0]}")
 
 def op_ld(lex: LexerResults) -> Instruction:
     args: list = []
@@ -193,7 +195,7 @@ def op_ld(lex: LexerResults) -> Instruction:
         args.append(lex.operand2())
 
     text = f"LD {args[0]}, {args[1]}"
-    return Instruction(text)
+    return Instruction.from_text(text)
 
 def op_ldh(lex: LexerResults) -> Instruction:
     return None

@@ -33,6 +33,8 @@ class InstructionSet():
                     "A": {"d8": {"!": 0xc6}},
                     "SP": {"r8": {"!": 0xe8}}},
             # More ADD A,rr instructions in _build_ASXOC_REG_instructions
+            "AND": {"d8": {"!": 0xe7}},
+            # "AND"   -- remainder in _build_ASXOC_REG_instructions
             # "ADC"   -- in _build_ASXOC_REG_instructions
             # "BIT"   -- in _build_CB_instructions
             "CALL": {"NZ": {"a16": {"!": 0xc4}},
@@ -41,7 +43,8 @@ class InstructionSet():
                      "C": {"a16": {"!": 0xdc}},
                      "a16": {"!": 0xcd}},
             "CCF": {"!": 0x3f},
-            # "CP"   -- _build_CP_instructions()
+            "CP": {"d8": {"!": 0xfe}},
+            # "CP"   -- remaining in _build_CP_instructions()
             "CPL": {"!": 0x2f},
             "DAA": {"!": 0x27},
             "DEC": {"B": {"!": 0x05},
@@ -94,6 +97,7 @@ class InstructionSet():
                     "D": {"d8": {"!": 0x16}},
                     "H": {"d8": {"!": 0x26}},
                     "(HL)": {"d8": {"!": 0x36}},
+                    "(C)" : {"A": {"!": 0xe2}},
                     "(a16)": {"SP": {"!": 0x08},
                               "A": {"!": 0xea}},
                     "A": {"(BC)": {"!": 0x0a},
@@ -109,7 +113,8 @@ class InstructionSet():
             "LDH": {"({a8})": {"A": {"!": 0xe0}},
                     "A": {"(a8)": {"!": 0xf0}}},
             "NOP": {"!": 0x00},
-            # "OR"   -- in _build_ASXOC_REG_instructions
+            "OR": {"d8": {"!": 0xf6}},
+            # "OR"   -- remainder in _build_ASXOC_REG_instructions
             "POP": {"BC": {"!": 0xc1},
                     "DE": {"!": 0xd1},
                     "HL": {"!": 0xe1},
@@ -147,17 +152,18 @@ class InstructionSet():
             # "SLA"  -- in _build_CB_instructions
             # "SRA"  -- in _build_CB_instructions
             # "SRL"  -- in _build_CB_instructions
-            "STOP": {"!": 0x10}
-            # "SUB"  -- in _build_ASXOC_REG_instructions
+            "STOP": {"!": 0x10},
+            "SUB": {"d8": {"!", 0xd6}},
+            # "SUB"  -- remaining in _build_ASXOC_REG_instructions
             # "SWAP" -- in _build_CB_instructions
-            # "XOR"  -- in _build_ASXOC_REG_instructions
+            "XOR": {"d8": {"!": 0xee}} # rest in _build_ASXOC_REG_instructions
         }
         self._build_LD_REG_instructions()
         self._build_ASXOC_REG_instructions()
         self._build_CB_instructions()
         self._build_CP_instructions()
-        self._mnemonics = self._instructions.keys()
         self._ins_detail = self._load_ins_detail()
+        self._mnemonics = self._instructions.keys()
 
         # -----=====< End of __init__() >=====----- #
 
@@ -242,7 +248,7 @@ class InstructionSet():
         operations = ['SUB', 'AND', 'XOR', 'OR', 'CP']
         starts = [0x90, 0xa0, 0xa8, 0xb0, 0xb8]
         for idx in range(len(operations)):
-
+            mn = operations[idx]
             start = starts[idx]
             index = 0
             existing = {} if mn not in self._instructions \
@@ -303,3 +309,9 @@ class InstructionSet():
 # --------========[ End of InstructionSet class ]========-------- #
 
 ###############################################################################
+
+
+if __name__ == "__main__":
+    IS = InstructionSet
+    test = IS().is_mnemonic('XOR')
+    print(test)

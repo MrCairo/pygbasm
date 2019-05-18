@@ -1,3 +1,6 @@
+"""
+Implementation of a Section
+"""
 #
 # Class that parses and contains information about a section.
 # There can only be one section per file.
@@ -6,6 +9,7 @@ import string
 from collections import namedtuple
 from gbasm.exception import SectionDeclarationError, SectionTypeError
 from gbasm.basic_lexer import BasicLexer
+from gbasm.constants import EQU, LBL, INST, STOR
 
 ###############################################################################
 
@@ -57,6 +61,7 @@ class Section:
     Handles the parsing of a SECTION line.
     The return value of the "parseLine" is a dictionary
     """
+    _types = [EQU, LBL, INST, STOR]
 
     #
     # Init with the reader object. The line in the reader (or the one to be read)
@@ -68,15 +73,24 @@ class Section:
         self._tokens = tokens
         self._parser = SectionParser(tokens)
         self._parsed = self._parser.parsed_data()
-        self._storage = bytearray()
+        self._storage = []
 
-    def __repr__(self):
+    def __str__(self):
         if self.is_valid:
             start, end = self.address_range()
             desc = f"Section Name  '{self.name()}'\n" \
                    f"Address Range '{start:04X} - {end:04X}'\n"
             return desc
         return "None"
+
+    def __repr__(self):
+        desc = f"Section({self._tokens})"
+        return desc
+
+    @staticmethod
+    def typename():
+        """Returns the string name of this class's type."""
+        return "Section"
 
     @classmethod
     def from_string(cls, text: str):
@@ -107,9 +121,16 @@ class Section:
             self._parsed['name'] and \
             self._parsed['address_range']
 
-    def append_data(self, data: bytes):
-        """Adds instruction data to this section."""
-        self._storage.extend(data)
+    def append(self, type_str: str, value) -> bool:
+        """
+        Adds objects included in this section.
+        """
+        if type_str not in self._types:
+            return False
+        data = {"type": type_str,
+                "object": value}
+        self._storage.append(data)
+        return True
 
     # --------========[ End of class ]========-------- #
 

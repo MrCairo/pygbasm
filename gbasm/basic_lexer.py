@@ -11,12 +11,9 @@ from gbasm.constants import DIR, TOK, MULT, STOR, INST, LBL
 IS = InstructionSet
 
 class BasicLexer:
-    _file_name: str
-    _line_no: int = 0
-    _reader: Reader
-    _tokenized: list = []
-
     def __init__(self, reader: Reader):
+        self._line_no: int = 0
+        self._tokenized: list = []
         self._reader = reader
         self._file_name = reader.filename
 

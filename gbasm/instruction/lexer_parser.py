@@ -3,7 +3,8 @@ from gbasm.conversions import ExpressionConversion
 from gbasm.instruction.instruction_set import InstructionSet
 from gbasm.exception import Error, ErrorCode
 from gbasm.instruction import Registers
-
+from gbasm.basic_lexer import BasicLexer, is_node_valid
+from gbasm.constants import TOK
 EC = ExpressionConversion
 IS = InstructionSet
 
@@ -173,8 +174,10 @@ class LexerResults:
         """
         Returns true if operand1 or operand2 contains an error.
         """
-        return self.operand1_error() is None and \
+        test = self.mnemonic_error() is None and \
+            self.operand1_error() is None and \
             self.operand2_error() is None
+        return test
 
     def _if_found(self, key):
         return None if key not in self._raw else self._raw[key]
@@ -184,16 +187,24 @@ class LexerResults:
 
 class InstructionParser:
     """ Parses an individual instruction """
-    def __init__(self, instruction: str):
-        self._final = {}   # Final result dictionary.
+    _instruction_in = ""
+    _tokens = None
+    _final = {}
+    state = None
+
+    def __init__(self, node: dict):
         self.state = None
-        self._tokens = None
-        self._instruction_in = instruction[:132]
+        if is_node_valid(node):
+            self._final = self._parse(node[TOK])
+
+    @classmethod
+    def from_text(cls, instruction: str):
         if instruction:
-            self._final = None
-            tok = self._tokenize(self._instruction_in)
-            if tok:
-                self._final = self._parse(tok)
+            lex = BasicLexer.from_text(instruction)
+            if lex:
+                lex.tokenize()
+                return cls(lex.tokenized_list()[0])
+        return cls({})
 
     def __repr__(self):
         pp = pprint.PrettyPrinter(indent=4)
@@ -218,55 +229,17 @@ class InstructionParser:
     #                                             #
     # -----=====<  Private Functions  >=====----- #
 
-    @staticmethod
-    def _explode(instruction: str) -> dict:
-        """
-        Returns an array of values that represent the individual
-        components of an instruction. For example 'LD B, (HL)' would
-        result in an array like: ['LD', 'B', '(HL)']
-        """
-        def clean_split(str_in) -> [str]:
-            return list(filter(lambda x: len(x), str_in.split(' ')))
-        components = []
-        args = []
-        if instruction and instruction.strip():
-            args = instruction.upper().split(',')
-            components = clean_split(args.pop(0).strip())
-            opcode = components.pop(0)
-            components += [x for x in args]
-        if not components:
-            return {"opcode": opcode}
-        return {"opcode": opcode, "operands": components}
-
-    def _tokenize(self, instruction) -> dict:
-        """
-        Tokenizes the instruction into a mnemonic (opcode) and
-        operands.
-        """
-        clean = instruction.upper().split(";")[0]  # ignore comments
-        if not clean:
-            return None
-        exploded = self._explode(clean)
-        result = None
-        if exploded:
-            if "opcode" in exploded:
-                ins = IS().instruction_from_mnemonic(exploded["opcode"])
-                result = {"tok": exploded,
-                          "ins_def": ins}
-        self._tokens = LexerTokens(result)
-        return result
-
     def _parse(self, tokens: dict) -> dict:
         """
         This parses the tokens created in the _tokenize function.
         """
-        if "tok" not in tokens or tokens["ins_def"] is None:
-            return {"mnemonic": self._instruction_in,
-                    "mnemonic_error":
-                    Error(ErrorCode.INVALID_MNEMONIC)}
-        tok = tokens["tok"]  # Tokenized instruction
-        self.state = _State(tokens["ins_def"], {}, "")
-        mnemonic = tok["opcode"]
+        mnemonic = tokens[0]
+        ins = IS().instruction_from_mnemonic(mnemonic)
+        main = {"tok": {"opcode": mnemonic, "operands": tokens[1:]},
+                "ins_def": ins}
+        self._tokens = LexerTokens(main)
+        tok = main["tok"]  # Tokenized instruction
+        self.state = _State(main["ins_def"], {}, "")
         operands = [] if "operands" not in tok else tok["operands"]
         for (_, arg) in enumerate(operands, start=1):
             # True if the argument is within parens like "(HL)"
@@ -501,11 +474,11 @@ class _State:
     # --------========[ End of Insternal _State class ]========-------- #
 
 if __name__ == "__main__":
-    ip = InstructionParser("LD (XX), LABEL")
+    ip = InstructionParser.from_text("CP $0a")
     print(ip)
 
-    ip = InstructionParser("LD (GGG), SP")
+    ip = InstructionParser.from_text("LD (GGG), SP")
     print(ip)
 
-    ip = InstructionParser("ADD A, $10")
+    ip = InstructionParser.from_text("ADD A, $10")
     print(ip)

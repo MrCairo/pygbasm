@@ -4,7 +4,7 @@ Manages EQU tokens
 import string
 from gbasm.conversions import ExpressionConversion
 from gbasm.label import Label
-from gbasm.basic_lexer import BasicLexer
+from gbasm.basic_lexer import BasicLexer, is_node_valid
 from gbasm.constants import DIR, TOK, EQU, LBL, MULT
 
 EC = ExpressionConversion
@@ -20,12 +20,21 @@ class Equate:
     def __init__(self, tokens: dict):
         self._tok = tokens
 
-    def __repr__(self):
+    def __str__(self):
         if self._label:
             desc = f"Label: {self._label.name()}\n"
             desc += f"Value: {hex(self._label.value())}\n"
             return desc
         return None
+
+    def __repr__(self):
+        desc = f"Equate({self._tok})"
+        return desc
+
+    @staticmethod
+    def typename():
+        """Returns the string name of this class's type."""
+        return "Equate"
 
     @classmethod
     def from_string(cls, line: str):
@@ -79,19 +88,13 @@ class _EquateParser:
          {'directive': 'EQU', 'tokens': 'EQU', '$FFD2']}]
         """
         # Validate keys first.
-        if DIR not in self._tok[0] or TOK not in self._tok[0]:
+        if self._tok[0][DIR] != LBL:
             return None
-        if self._tok[0][DIR] != MULT:
+        if len(self._tok) < 2:
             return None
-        tokens = self._tok[0][TOK]
-        if len(tokens) < 2:
-            return None
-        for item in tokens:
-            if DIR not in item or TOK not in item:
-                return None
+        label_name = self._tok[0][TOK]
         # keys are correct. Now capture/validate values.
-        label_name = tokens[0][TOK]
-        equ = tokens[1][TOK]
+        equ = self._tok[1][TOK]
         equ_val = equ[1]
         valid = string.ascii_letters + "_"
         for char in label_name:
