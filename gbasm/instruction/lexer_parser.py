@@ -277,6 +277,17 @@ class InstructionParser:
         return clean.startswith("(") and clean.endswith(")")
 
     @staticmethod
+    def plus_split(clean) -> list:
+        _split = None
+        if "(HL+)" in clean or "(HL-)" in clean:
+            return None
+        if "+" in clean:
+            _tmp = clean.split("+")
+            if len(_tmp) == 2:
+                _split = _tmp
+        return _split
+
+    @staticmethod
     def _int_to_z80binary(dec_val, little_endian=True, bits=8) -> bytearray:
         """
         Converts the decimal value to binary format.
@@ -310,23 +321,28 @@ class InstructionParser:
             if self.state.roam_to_arg():
                 self.state.set_operand_to_val(self.state.arg)
                 return True
-            else:
-                # A valid register, just not with this mnemonic
-                arg = self.state.arg
-                msg = f"Register {arg} is not valid with this mnemonic"
-                err = Error(ErrorCode.INVALID_OPERAND,
-                            supplimental=msg)
-                self.state.set_operand_to_val(self.state.arg, err=err)
-                return False
+            # A valid register, just not with this mnemonic
+            arg = self.state.arg
+            msg = f"Register {arg} is not valid with this mnemonic"
+            err = Error(ErrorCode.INVALID_OPERAND,
+                        supplimental=msg)
+            self.state.set_operand_to_val(self.state.arg, err=err)
+            return False
         return None
 
     def _if_number(self):
-        arg = self.state.arg
+        _arg = self.state.arg
         arg_parens = False
+        plus = None
         if self.state.is_arg_inside_parens():
-            arg = arg.strip("()")
+            _arg = _arg.strip("()")
             arg_parens = True
-        dec_val = EC().value_from_expression(arg)
+        _split = InstructionParser.plus_split(_arg)
+        if _split and len(_split) == 2:
+            if _split[0] == "SP":
+                plus = _arg
+                _arg = _split[1]
+        dec_val = EC().value_from_expression(_arg)
         if dec_val:  # Is this an immediate value?
             placeholder = self._ph_in_list(self.state.roamer.keys(),
                                            parens=arg_parens)
@@ -341,6 +357,8 @@ class InstructionParser:
                 if self.state.is_arg_in_roamer(placeholder):
                     self.state.roam_to_arg()
                     self.state.operands["placeholder"] = placeholder
+                    if plus:
+                        self.state.operands[self.state.op_key] = plus
                     return True
         else:  # This is just info for an error. arg is NOT a number.
             msg = "The argument is not a numeric value"
@@ -357,16 +375,20 @@ class InstructionParser:
         """
         ph_key = None
         found = False
-        regs = {"8": ["r8", "a8", "d8"], "16": ["a16", "d16"]}
+        regs = {"8": ["r8", "a8", "d8", "SP+r8"], "16": ["a16", "d16"]}
         eight = "8" if not parens else "8)"
         sixteen = "16" if not parens else "16)"
-        for k in ph_list:
-            if k.find(eight) != -1:  # Maybe an 8-bit placeholder key
-                ph_key = k
-                break
-            if k.find(sixteen) != -1:
-                ph_key = k
-                break
+        if bits == "8":
+            for k in ph_list:
+                if k.find(eight) != -1:  # Maybe an 8-bit placeholder key
+                    ph_key = k
+                    break
+        #if we are 16 bits or an 8-bit value isn't found...
+        if not ph_key:
+            for k in ph_list:
+                if k.find(sixteen) != -1:
+                    ph_key = k
+                    break
         if ph_key:
             for r in regs["8"]:
                 if ph_key.find(r) >= 0:
@@ -474,7 +496,13 @@ class _State:
     # --------========[ End of Insternal _State class ]========-------- #
 
 if __name__ == "__main__":
-    ip = InstructionParser.from_text("CP $0a")
+    ip = InstructionParser.from_text("LD HL, SP+$45")
+    print(ip)
+
+    ip = InstructionParser.from_text("LD SP, $ffd2")
+    print(ip)
+
+    ip = InstructionParser.from_text("LD A, $45")
     print(ip)
 
     ip = InstructionParser.from_text("LD (GGG), SP")

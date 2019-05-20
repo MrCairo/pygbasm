@@ -104,6 +104,9 @@ class Instruction:
 ###############################################################################
 
 if __name__ == "__main__":
+    ins = Instruction.from_text("LD HL, SP+$17")
+    print(ins)
+
     ins = Instruction.from_text("JP NZ, $0010")
     print(ins)
 
