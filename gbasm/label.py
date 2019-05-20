@@ -74,10 +74,11 @@ class Label():
         self._value = value
         self._base_address = InstructionPointer().base_address
         self._local_hash: str
+        self._force_const = force_const
         if force_const:  # Override const
             self._constant = True
 
-    def __repr__(self):
+    def __str__(self):
         is_const = "---"
         is_const = "Yes" if self._constant else "No"
         scope = "local" if self._scope == Label.LOCAL_SCOPE else "global"
@@ -85,6 +86,16 @@ class Label():
         desc += f"is constant: {is_const}"
         desc += f"\nScope: {scope}"
         return desc
+
+    def __repr__(self):
+        desc = f"Label(\"{self._original_label}\", {self._value}, " \
+            f"force_const={self._force_const})"
+        return desc
+
+    @staticmethod
+    def typename():
+        """Returns the string name of this class's type."""
+        return "Equate"
 
     def clean_name(self) -> str:
         """Returns the cleaned valid label stripped of the first and
@@ -104,9 +115,9 @@ class Label():
     def is_constant(self) -> bool:
         """
         Returns True if the label's value is considered a
-        constant. Constant values do not change. For example Pi is a constant
-        value whereas something like the address of where code is located
-        in memory can change.
+        constant. Constant values do not change. For example Pi is a
+        constant value whereas something like the address of where code is
+        located in memory can change.
         """
         return self._constant
 

@@ -25,6 +25,7 @@ class Registers():
     def is_valid_register(self, register):
         """Returns True/False if the register provided is a known register."""
         if register:
+            _special = ["(HL+)", "(HL-)", "SP+"]
             clean = register.strip("() +-")
             if len(clean):
                 return clean in self._all_registers

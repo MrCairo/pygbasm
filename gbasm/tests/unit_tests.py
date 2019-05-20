@@ -2,7 +2,12 @@
 gbasm unit tests
 """
 import unittest
+import json, os
+import random
 from gbasm.label import Label, Labels
+from gbasm.instruction import Instruction
+
+_instruction_set = None
 
 class TestLabelMethods(unittest.TestCase):
 
@@ -121,6 +126,65 @@ class TestLabelContainer(unittest.TestCase):
     # --------========[ End of class ]========-------- #
 
 
+class TestInstructionMethods(unittest.TestCase):
+
+    def test_ld_instructions(self):
+        ins_list = get_instructions_by_mnemonic("LD")
+        if ins_list:
+            for ins in ins_list:
+                line = ins["code_line"]
+                code = Instruction.from_text(line)
+                self.assertTrue(code.is_valid(),
+                                f"Instruction {line} failed.")
+
+
+#     ins = Instruction.from_text("JP NZ, $0010")
+#     print(ins)
+
+#     ins = Instruction.from_text("LD a, ($ff00)")
+#     print(ins)
+
+#     ins = Instruction.from_text("LD ($ff00), a")
+#     print(ins)
+
+#     ins = Instruction.from_text("RrCa")
+#     print(ins)
+
+#     ins = Instruction.from_text("Add HL, SP")
+#     print(ins)
+
+#     ins = Instruction.from_text("LD A, (HL-)")
+#     print(ins)
+
+#     ins = Instruction.from_text("ADD SP, $25")
+#     print(ins)
+
+#     ins = Instruction.from_text("LD b, c")
+#     print(ins)
+
+#     ins = Instruction.from_text("Nop")
+#     print(ins)
+
+#     ins = Instruction.from_text("JP (HL)")
+#     print(ins)
+
+#     ins = Instruction.from_text("LD A, ($aabb)")
+#     print(ins)
+
+#     ins = Instruction.from_text("SET 3, (HL)")
+#     print(ins)
+
+#     ins = Instruction.from_text("XOR $ff")
+#     print(ins)
+
+#     # Failures
+#     ins = Instruction.from_text("JR .RELATIVE")
+#     print(ins)
+
+#     ins = Instruction.from_text("NOP A")
+#     print(ins)
+
+
 def label_suite():
     suite = unittest.TestSuite()
     suite.addTest(TestLabelMethods('test_create_label'))
@@ -143,6 +207,80 @@ def label_suite():
     suite.addTest(TestLabelContainer('test_label_lookup'))
     return suite
 
+def instruction_suit():
+    suite = unittest.TestSuite()
+    suite.addTest(TestInstructionMethods('test_ld_instructions'))
+    return suite
+
+# -----=====< Utility Functions >=====----- #
+#                                           #
+def load_instruction_set() -> dict:
+    """
+    Loads the LR35902 instruction set from the JSON
+    file located in the same directory as this script.
+    """
+    filedir = os.path.realpath(
+        os.path.join(os.getcwd(),
+                     os.path.dirname(__file__)))
+    json_filename = f'{filedir}/../instruction/gbz80-hex.json'
+    if os.path.exists(json_filename):
+        fh = open(json_filename)
+        return json.load(fh)
+    return None
+
+def get_instructions_by_mnemonic(mnemonic: str) -> dict:
+    found_list = []
+    for key in _instruction_set.keys():
+        node = _instruction_set[key]
+        if node["mnemonic"] == mnemonic:
+            line = mnemonic
+            # Fill in placeholders (i.e. d8, a16) with random hex values
+            repl = None
+            if "operand1" in node:
+                repl = fill_placeholder(node["operand1"])
+                if repl:
+                    node["operand1"] = repl
+                line += f" {node['operand1']}"
+            if "operand2" in node:
+                repl = fill_placeholder(node["operand2"])
+                if repl:
+                    node["operand2"] = repl
+                line += f" {node['operand2']}"
+            node["code_line"] = line
+            print(line)
+            found_list.append(node)
+    return found_list
+
+def rnd_hex_num(num_bytes: int) -> str:
+    bits = num_bytes * 8
+    if bits not in range(0, 17):
+        return ""
+    maximum = (2**bits) - 1
+    num = random.randrange(0, maximum)
+    if num_bytes == 1:
+        return f"${num:02x}"
+    return f"${num:04x}"
+
+def fill_placeholder(op: str) -> str:
+    repl = None
+    if op:
+        eight = ["d8", "a8", "r8"]
+        sixteen = ["d16", "a16"]
+        rnd8 = rnd_hex_num(1)
+        rnd16 = rnd_hex_num(2)
+        for b in eight:
+            if b in op:
+                repl = op.replace(b, rnd8)
+                break
+        if not repl:
+            for b in sixteen:
+                if b in op:
+                    repl = op.replace(b, rnd16)
+                    break
+    return repl
+
 if __name__ == "__main__":
+    _instruction_set = load_instruction_set()
     runner = unittest.TextTestRunner()
     runner.run(label_suite())
+    runner.run(instruction_suit())

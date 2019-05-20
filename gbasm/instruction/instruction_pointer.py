@@ -11,36 +11,51 @@ from gbasm.conversions import ExpressionConversion
 @singleton
 class InstructionPointer():
     """ Represents the CPU's IP """
-    __pointer = None
-    __section_base = None
+    _pointer = None
+    _section_base = None
 
     def __init__(self):
-        self.__pointer = 0x0000
-        self.__section_base = 0x00
+        self._pointer = 0x0000
+        self._section_base = 0x00
 
     def __repr__(self):
         desc = "No value"
-        if self.__pointer is not None:
-            desc = f"Address: {self.__pointer:04x}".upper()
+        if self._pointer is not None:
+            desc = f"Address: {self._pointer:04x}".upper()
         return desc
 
     @property
     def location(self) -> int:
         """Returns the current location or IP."""
-        return self.__pointer
+        return self._pointer
 
     @location.setter
     def location(self, value):
         """Sets the current location or IP."""
         if value in range(0, 65536):
-            self.__pointer = value
+            self._pointer = value
+
+    def move_location_relative(self, val) -> bool:
+        """
+        Moves the location (pointer) val distance positive or negative
+        relative to the current location. If the move can be made within
+        the range of 0 to 65535 then the return value will be True,
+        otherwise it will be false.  This method differs from then
+        move_relative() method in that the direction is not limited to +/-
+        127/128.
+        """
+        newloc = self._pointer + val
+        if 65536 > newloc >= 0:
+            self._pointer = newloc
+            return True
+        return False
 
     @property
     def base_address(self):
         """Returns the base address of the current location.
         This is based upon the SECTION in which the IP is in.
         """
-        return self.__section_base
+        return self._section_base
 
     @base_address.setter
     def base_address(self, new_value):
@@ -53,8 +68,8 @@ class InstructionPointer():
         if address is None:
             address = 0x0000
         else:
-            self.__section_base = address
-            self.__pointer = address
+            self._section_base = address
+            self._pointer = address
 
     def move_relative(self, relative):
         """
@@ -66,7 +81,7 @@ class InstructionPointer():
         if relative in range(0, 255):
             neg = relative >> 7
             displacement = ((relative ^ 255) + 1) * -1 if neg else relative
-            if self.__pointer + displacement > 0:
-                self.__pointer += displacement
+            if self._pointer + displacement > 0:
+                self._pointer += displacement
                 rc = True
         return rc

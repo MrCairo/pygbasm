@@ -8,13 +8,10 @@ from gbasm.basic_lexer import BasicLexer, is_node_valid
 class Instruction:
     """ Encapsulates an individual Z80 instruction """
 
-    def __init__(self, tokens: dict):
-        instruction = tokens
-        instruction = instruction.upper()
-        clean = instruction.strip()
-        self.instruction = clean.split(';')[0]
-        ip = InstructionParser(instruction)
+    def __init__(self, node: dict):
+        ip = InstructionParser(node)
         self._tokens = ip.tokens()
+        self._node = node
         self._lex_results: LexerResults = ip.result()
         self._placeholder_string = None
 
@@ -24,10 +21,10 @@ class Instruction:
         lex = BasicLexer.from_text(text)
         if lex:
             lex.tokenize()
-            return cls(lex.tokenized_list())
+            return cls(lex.tokenized_list()[0])
         return cls({})
 
-    def __repr__(self):
+    def __str__(self):
         desc = "   Mnemonic = " + self.mnemonic() + "\n"
         if self._lex_results.lexer_tokens().operands():
             desc +=  "  Arguments = " + ',' . \
@@ -52,6 +49,12 @@ class Instruction:
             if self.placeholder():
                 desc += "Placeholder = " + self.placeholder()
                 desc += "\n"
+        return desc
+
+    def __repr__(self):
+        node = self._node
+        del node['source_line']
+        desc = f"Instruction({self._node})"
         return desc
 
     def mnemonic(self) -> str:
@@ -92,7 +95,8 @@ class Instruction:
         Returns true if the Instruc object is valid. Validity is
         determined on whether the instruction was parsed successfully.
         """
-        return self._lex_results.mnemonic_error() is None
+        test = self._lex_results.is_valid()
+        return test
 
     # --------========[ End of Instruction class ]========-------- #
 
@@ -100,45 +104,51 @@ class Instruction:
 ###############################################################################
 
 if __name__ == "__main__":
-    ins = Instruction("JP NZ, $0010")
+    ins = Instruction.from_text("LD HL, SP+$17")
     print(ins)
 
-    ins = Instruction("LD a, ($ff00)")
+    ins = Instruction.from_text("JP NZ, $0010")
     print(ins)
 
-    ins = Instruction("LD ($ff00), a")
+    ins = Instruction.from_text("LD a, ($ff00)")
     print(ins)
 
-    ins = Instruction("RrCa")
+    ins = Instruction.from_text("LD ($ff00), a")
     print(ins)
 
-    ins = Instruction("Add HL, SP")
+    ins = Instruction.from_text("RrCa")
     print(ins)
 
-    ins = Instruction("LD A, (HL-)")
+    ins = Instruction.from_text("Add HL, SP")
     print(ins)
 
-    ins = Instruction("ADD SP, $25")
+    ins = Instruction.from_text("LD A, (HL-)")
     print(ins)
 
-    ins = Instruction("LD b, c")
+    ins = Instruction.from_text("ADD SP, $25")
     print(ins)
 
-    ins = Instruction("Nop")
+    ins = Instruction.from_text("LD b, c")
     print(ins)
 
-    ins = Instruction("JP (HL)")
+    ins = Instruction.from_text("Nop")
     print(ins)
 
-    ins = Instruction("LD A, ($aabb)")
+    ins = Instruction.from_text("JP (HL)")
     print(ins)
 
-    ins = Instruction("SET 3, (HL)")
+    ins = Instruction.from_text("LD A, ($aabb)")
+    print(ins)
+
+    ins = Instruction.from_text("SET 3, (HL)")
+    print(ins)
+
+    ins = Instruction.from_text("XOR $ff")
     print(ins)
 
     # Failures
-    ins = Instruction("JR .RELATIVE")
+    ins = Instruction.from_text("JR .RELATIVE")
     print(ins)
 
-    ins = Instruction("NOP A")
+    ins = Instruction.from_text("NOP A")
     print(ins)

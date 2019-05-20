@@ -13,7 +13,7 @@ from gbasm.instruction import InstructionSet
 from gbasm.resolver import Resolver
 from gbasm.label import Label, Labels, is_valid_label
 from gbasm.conversions import ExpressionConversion
-from gbasm.basic_lexer import BasicLexer, is_node_valid, is_multiple_node
+from gbasm.basic_lexer import BasicLexer, is_multiple_node
 from gbasm.constants import DIR, TOK, EQU, LBL, INST, STOR, SEC
 
 import tempfile
@@ -154,7 +154,8 @@ class Parser:
                     _errors.append(err)
                     continue
                 if tok_list[0][DIR] == LBL:
-                    self._process_label(tok_list[0])
+                    label = self._process_label(tok_list[0])
+                    Labels().add(label)
                 # Equate has it's own required label. It's not a standard label
                 # in that it can't start with a '.' or end with a ':'
                 if tok_list[1][DIR] == EQU:
@@ -165,10 +166,15 @@ class Parser:
                 # Storage values can be associated with a label. The label
                 # then can be used almost like an EQU label.
                 elif tok_list[1][DIR] == STOR:
-                    self._process_storage(tok_list[1])
+                    storage = self._process_storage(tok_list[1])
+                    if storage:
+                        _storage.append(storage)
+                        IP().move_location_relative(len(storage))
             # Just check for a label on it's own line.
             if node[DIR] == LBL and len(tok_list) == 1:
                 self._process_label(node)
+            elif node[DIR] == INST:
+                self._process_instruction(node)
         return
 
     def _assemble(self, line: str):
@@ -234,8 +240,30 @@ class Parser:
 
 
     def _process_instruction(self, node: dict):
-        print(node)
-        pass
+        address = None
+        ins = None
+        if node is None:
+            return None
+        ins = Instruction(node)
+        if ins.parse_result().is_valid():
+            print("--- Resolved:")
+            IP().move_relative(len(ins.machine_code()))
+            return ins
+        # Make sure the mnemonic is at least valid.
+        if ins.parse_result().mnemonic_error() is None:
+            ins = Resolver().resolve_instruction(ins, IP().location)
+            if ins and ins.is_valid():
+                IP().move_relative(len(ins.machine_code()))
+                print("--- Resolved with label:")
+#            ins = self._process_label(line)
+        if ins and ins.is_valid():
+            if address is not None:
+                ins.address = address
+            _instructions.append(ins)
+            IP().move_relative(len(ins.machine_code()))
+        else:
+            print(f"ERROR: {node}")
+        return ins
 
     def _process_instruction_line(self, line: str):
         address = None
@@ -263,9 +291,7 @@ class Parser:
         return ins
 
     def _process_label(self, node: dict, value=None):
-        if not len(node):
-            return None
-        if DIR not in node or TOK not in node:
+        if not node:
             return None
         if node[DIR] != LBL:
             return None
@@ -277,7 +303,6 @@ class Parser:
         if not value:
             loc = IP().location
         label = Label(clean, loc)
-        Labels().add(label)
         return label
 
     def _find_section(self, line: str) -> Section:
@@ -339,7 +364,7 @@ class Parser:
     def _process_storage(self, node: dict):
         if not node:
             return
-        storage = Storage(node)
+        return Storage(node)
 
     @staticmethod
     def _join_parens(line) -> str:

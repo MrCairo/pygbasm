@@ -7,6 +7,7 @@ from gbasm.exception import DefineDataError
 from gbasm.conversions import ExpressionConversion as EC
 from gbasm.basic_lexer import BasicLexer, is_node_valid
 from gbasm.constants import DIR, TOK, STOR
+from gbasm.instruction.instruction_pointer import InstructionPointer
 
 ###############################################################################
 
@@ -21,12 +22,14 @@ class Storage:
     _roamer = 0
     _parser = None
     _tok: dict
+    _base_address: int
 
     def __init__(self, node: dict):
         self._parser = None
         if node[DIR] == STOR:
             self._tok = node[TOK]
             self._parser = StorageParser(node)
+            self._base_address = InstructionPointer().location
             return
         raise DefineDataError("The directive should be STORAGE but isn't")
 
@@ -41,6 +44,9 @@ class Storage:
             tok.tokenize()
             return cls(tok.tokenized_list()[0])
         return cls({})
+
+    def __str__(self):
+        return self._parser.__str__()
 
     def __repr__(self):
         return self._parser.__repr__()
@@ -62,6 +68,11 @@ class Storage:
     def __len__(self):
         return len(self._parser)
 
+    @staticmethod
+    def typename():
+        """Returns the string name of this class's type."""
+        return "Storage"
+
     def to_bytes(self):
         return self._parser.data()
 
@@ -71,6 +82,7 @@ class StorageParser:
     Parses storage types in tokenized format.
     """
     _data: bytearray
+    _node: dict
     _tok: dict = {}
     _types = {
         "DS": StorageType.SPACE,
@@ -82,6 +94,7 @@ class StorageParser:
 
     def __init__(self, node: dict):
         self._data = None
+        self._node = node
         if is_node_valid(node):
             self._tok = node[TOK]
             type_name = self._tok[0]
@@ -91,7 +104,7 @@ class StorageParser:
             self._data = bytearray()
             self._parse()
 
-    def __repr__(self):
+    def __str__(self):
         desc = "No Data"
         if self._data:
             desc = f"Type: {self._tok[0]}\n"
@@ -112,6 +125,14 @@ class StorageParser:
                     desc += "  "
                     col = 0
             desc += "\n"
+        return desc
+
+    def __repr__(self):
+        args = self._tok[0] + " "
+        for item in self._tok[1:-1]:
+            args += item + ", "
+        args += f"{self._tok[-1:][0]}"
+        desc = f"Storage.from_text(\"{args}\")"
         return desc
 
     def __len__(self):
