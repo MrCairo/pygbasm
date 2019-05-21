@@ -89,7 +89,8 @@ class InstructionSet():
                     "DE": {"d16": {"!": 0x11}},
                     "HL": {"d16": {"!": 0x21},
                            "SP+r8": {"!": 0xf8}},
-                    "SP": {"d16": {"!": 0x31}},
+                    "SP": {"d16": {"!": 0x31},
+                           "HL": {"!": 0xf9}},
                     "(BC)": {"A": {"!": 0x02}},
                     "(DE)": {"A": {"!": 0x12}},
                     "(HL+)": {"A": {"!": 0x22}},
@@ -140,22 +141,23 @@ class InstructionSet():
             "RRA": {"!": 0x1f},
             # "RRC"  -- in _build_CB_instructions
             "RRCA": {"!": 0x0f},
-            "RST": {"#$00": {"!": 0xc7},
-                    "#$08": {"!": 0xcf},
-                    "#$10": {"!": 0xd7},
-                    "#$18": {"!": 0xdf},
-                    "#$20": {"!": 0xe7},
-                    "#$28": {"!": 0xef},
-                    "#$30": {"!": 0xf7},
-                    "#$38": {"!": 0xff}},
+            "RST": {"00H": {"!": 0xc7},
+                    "08H": {"!": 0xcf},
+                    "10H": {"!": 0xd7},
+                    "18H": {"!": 0xdf},
+                    "20H": {"!": 0xe7},
+                    "28H": {"!": 0xef},
+                    "30H": {"!": 0xf7},
+                    "38H": {"!": 0xff}},
             # "SBC"  -- in _build_ASXOC_REG_instructions
             "SCF": {"!": 0x37},
             # "SET"  -- in _build_CB_instructions
             # "SLA"  -- in _build_CB_instructions
             # "SRA"  -- in _build_CB_instructions
             # "SRL"  -- in _build_CB_instructions
-            "STOP": {"!": 0x10},
-            "SUB": {"d8": {"!", 0xd6}},
+            "STOP": {"0": {"!": 0x10},
+                     "!": 0x10},
+            "SUB": {"d8": {"!": 0xd6}},
             # "SUB"  -- remaining in _build_ASXOC_REG_instructions
             # "SWAP" -- in _build_CB_instructions
             "XOR": {"d8": {"!": 0xee}} # rest in _build_ASXOC_REG_instructions
