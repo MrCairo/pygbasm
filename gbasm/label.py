@@ -10,7 +10,7 @@ Classes to handle labels.
 import string
 from singleton_decorator import singleton
 from gbasm.instruction.instruction_pointer import InstructionPointer
-
+from gbasm.constants import DIRECTIVES
 
 ###############################################################################
 class Label():
@@ -60,7 +60,8 @@ class Label():
             self._constant = True
         else:
             raise ValueError
-        if name.upper() in ["SECTION", "DS", "DB", "DW", "DL", "EQU"]:
+        # Label can't be
+        if name.upper() in DIRECTIVES:
             raise TypeError
 
         # Label now must be an EQU since it doesn't have a scope character
@@ -155,6 +156,8 @@ class Label():
         """
         self._base_address = new_value
 
+    # --------========[ End of class ]========-------- #
+
 
 def is_valid_label(name: str):
     """
@@ -164,11 +167,16 @@ def is_valid_label(name: str):
     label = Label(name.strip(), 0x00)  # Can we create a label from it?
     return label is not None
 
+
 def valid_label_chars():
+    """Returns an array (string)  of all valid characters of a label."""
     return string.ascii_letters + string.digits + ".:_"
 
+
 def valid_label_first_char():
+    """Returns an array (string) of all valid 1st characters of a label"""
     return string.ascii_letters + "."
+
 
 def _name_valid_chars(line: str):
     valid = True
@@ -179,6 +187,7 @@ def _name_valid_chars(line: str):
             valid = False
             break
     return valid
+
 
 ######################################################################
 
@@ -257,8 +266,11 @@ class Labels(dict):
         """
         self._labels.clear()
 
+    # --------========[ End of class ]========-------- #
 
-############### end of Labels class ###############
+
+# #############################################################################
+
 
 if __name__ == "__main__":
     def test_label():

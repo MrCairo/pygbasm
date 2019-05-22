@@ -118,16 +118,10 @@ def op_jr(lex: LexerResults) -> Instruction:
         label = maybe_label(clean1)
         if label is None:
             return None
-        curr = IP().location
-        base = label.value()
-        rel = 0
-        if curr > base:
-            rel = base - curr
-        else:
-            rel = curr - base
-        if rel < 0:
-            rel = 255 + rel
+        rel = compute_relative(IP().location, label.value())
+        rel = EC().expression_from_value(rel, "$")
         args.append(format_with_parens(rel, paren1))
+        lex.clear_operand1_error()
     else:
         if lex.operand1() in ["NZ", "Z", "NC", "C"]:
             args.append(lex.operand1())
@@ -142,7 +136,10 @@ def op_jr(lex: LexerResults) -> Instruction:
         label = maybe_label(clean2)
         if label is None:
             return None
-        args.append(format_with_parens(label.value, paren2))
+        rel = compute_relative(IP().location, label.value())
+        val = EC().expression_from_value(rel, "$")
+        args.append(format_with_parens(val, paren2))
+        lex.clear_operand2_error()
     else:
         if lex.operand2():
             val = EC().value_from_expression(clean2)
@@ -168,7 +165,8 @@ def op_ld(lex: LexerResults) -> Instruction:
         if label is None:
             if Registers().is_valid_register(clean1) is False:
                 return None
-        args.append(format_with_parens(label.value(), paren1))
+        val = EC().expression_from_value(label.value(), "$")
+        args.append(format_with_parens(val, paren1))
     else:
         args.append(lex.operand1())
 
@@ -199,6 +197,19 @@ def op_ld(lex: LexerResults) -> Instruction:
 
 def op_ldh(lex: LexerResults) -> Instruction:
     return None
+
+def compute_relative(curr, base) -> int:
+    """
+    Compute a relative 8-bit value
+    """
+    rel = 0
+    if curr > base:
+        rel = base - curr
+    else:
+        rel = curr - base
+    if rel < 0:
+        rel = 255 + rel
+    return rel
 
 def twos_comp(val, bits):
     """compute the 2's complement of int value val"""
