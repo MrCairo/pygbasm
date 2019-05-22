@@ -3,12 +3,12 @@ Z80 Assembler
 """
 from gbasm.reader import Reader, BufferReader
 from gbasm.instruction import InstructionSet
-from gbasm.label import is_valid_label, valid_label_chars
+from gbasm.label import is_valid_label
 from gbasm.label import valid_label_first_char
 from gbasm.constants import DIR, TOK, MULT, STOR, INST, LBL
-
-
+from gbasm.constants import DIRECTIVES, STORAGE_DIR
 IS = InstructionSet
+
 
 class BasicLexer:
     def __init__(self, reader: Reader):
@@ -61,17 +61,14 @@ class BasicLexer:
         clean = line.strip().split(';')[0]
         if not clean:
             return None  # Empy line
-        directives = ['EQU', 'SET', 'SECTION', 'EQUS', 'MACRO', 'ENDM',
-                      'EXPORT', 'GLOBAL', 'PURGE', 'INCBIN', 'UNION',
-                      'NEXTU', 'ENDU']
         tokens = {}
         clean = BasicLexer._join_parens(line)
         clean_split = clean.replace(',', ' ').split()
-        if clean_split[0] in directives:
+        if clean_split[0] in DIRECTIVES:
             tokens[DIR] = clean_split[0]
             tokens[TOK] = clean_split
             return tokens
-        if clean_split[0] in ["DS", "DB", "DW", "DL"]:
+        if clean_split[0] in STORAGE_DIR:
             tokens[DIR] = STOR
             tokens[TOK] = clean_split
             return tokens
@@ -89,10 +86,12 @@ class BasicLexer:
                     remainder = ' '.join(clean_split[1:])
                     more = BasicLexer._tokenize_line(remainder)
                     data.append(more)
-                tokens[TOK] = data
+                    tokens[TOK] = data
+                else:
+                    tokens[TOK] = clean_split[0]
                 return tokens
         tokens[DIR] = "UNKNOWN"
-        tokens[TOK] = clean.split()
+        tokens[TOK] = clean_split
         return tokens
 
     # --------========[ End of class ]========-------- #

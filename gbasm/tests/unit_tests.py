@@ -2,12 +2,13 @@
 gbasm unit tests
 """
 import unittest
-import json, os, sys
+import json, os, sys, string
 import random
 from gbasm.label import Label, Labels
 from gbasm.instruction import Instruction, InstructionSet
 
 _instruction_set = None
+_ins_processed_count = 0
 
 class TestLabelMethods(unittest.TestCase):
 
@@ -104,14 +105,16 @@ class TestLabelContainer(unittest.TestCase):
     def test_label_items(self):
         self.assertTrue(len(Labels().items()) == 0)
         for i in range(0, 100):
-            label = Label(f".testLabel{i}::", (0x1000 + i))
+            txt = ".testLabel%d::" % i
+            label = Label(txt, (0x1000 + i) )
             Labels().add(label)
         self.assertEqual(len(Labels().items()), 100)
 
     def test_remove_all_labels(self):
         self.assertTrue(len(Labels().items()) == 0)
         for i in range(0, 100):
-            label = Label(f".testLabel{i}::", (0x1000 + i))
+            txt = ".testLabel%d::" % i
+            label = Label(txt, (0x1000 + i))
             Labels().add(label)
         self.assertEqual(len(Labels().items()), 100)
         Labels().remove_all()
@@ -129,76 +132,20 @@ class TestLabelContainer(unittest.TestCase):
 class TestInstructionMethods(unittest.TestCase):
 
     def test_all_instructions(self):
+        global _ins_processed_count
         all_ins = ['ADD', 'AND', 'CALL', 'CCF', 'CP', 'CPL', 'DAA', 'DEC',
                    'DI', 'EI', 'INC', 'JP', 'JR', 'LD', 'LDH', 'NOP', 'OR',
                    'POP', 'PUSH', 'RET', 'RETI', 'RLA', 'RRA', 'RRCA',
                    'RST', 'SCF', 'STOP', 'SUB', 'XOR', 'HALT', 'ADC',
                    'SBC', 'RLC', 'RRC', 'RL', 'RR', 'SLA', 'SRA', 'SWAP',
                    'SRL', 'BIT', 'RES', 'SET']
-        print("Testing all instructions:")
+        print("Testing all instructions.")
+        _ins_processed_count = 0
         for mnemonic in all_ins:
-            print(f"\n'{mnemonic}'")
+            print(f".", end="")
             err = test_instruction(mnemonic)
             self.assertIsNone(err, err)
-
-    def test_ld_instructions(self):
-        err = test_instruction("LD")
-        self.assertIsNone(err, err)
-
-    def test_add_instructions(self):
-        err = test_instruction("ADD")
-        self.assertIsNone(err, err)
-
-    def test_sub_instructions(self):
-        err = test_instruction("SUB")
-        self.assertIsNone(err, err)
-
-#     ins = Instruction.from_text("JP NZ, $0010")
-#     print(ins)
-
-#     ins = Instruction.from_text("LD a, ($ff00)")
-#     print(ins)
-
-#     ins = Instruction.from_text("LD ($ff00), a")
-#     print(ins)
-
-#     ins = Instruction.from_text("RrCa")
-#     print(ins)
-
-#     ins = Instruction.from_text("Add HL, SP")
-#     print(ins)
-
-#     ins = Instruction.from_text("LD A, (HL-)")
-#     print(ins)
-
-#     ins = Instruction.from_text("ADD SP, $25")
-#     print(ins)
-
-#     ins = Instruction.from_text("LD b, c")
-#     print(ins)
-
-#     ins = Instruction.from_text("Nop")
-#     print(ins)
-
-#     ins = Instruction.from_text("JP (HL)")
-#     print(ins)
-
-#     ins = Instruction.from_text("LD A, ($aabb)")
-#     print(ins)
-
-#     ins = Instruction.from_text("SET 3, (HL)")
-#     print(ins)
-
-#     ins = Instruction.from_text("XOR $ff")
-#     print(ins)
-
-#     # Failures
-#     ins = Instruction.from_text("JR .RELATIVE")
-#     print(ins)
-
-#     ins = Instruction.from_text("NOP A")
-#     print(ins)
-
+        print(f"\nTested {_ins_processed_count} instructions\n")
 
 # -----=====< Unit test suites >=====----- #
 
@@ -226,17 +173,7 @@ def label_suite():
 
 def instruction_suit():
     suite = unittest.TestSuite()
-    print("Testing all instructions.")
     suite.addTest(TestInstructionMethods('test_all_instructions'))
-
-    # print("Testing all \"LD\" instructions.")
-    # suite.addTest(TestInstructionMethods('test_ld_instructions'))
-
-    # print("\nTesting all \"ADD\" instructions.")
-    # suite.addTest(TestInstructionMethods('test_add_instructions'))
-
-    # print("\nTesting all \"ADC\" instructions.")
-    # suite.addTest(TestInstructionMethods('test_add_instructions'))
     return suite
 
 
@@ -261,17 +198,19 @@ def test_instruction(mnemonic:str) -> str:
     Tests an instruction set of a specific mnemonic. So, if an "LD"
     is used, all LD instructions are tested.
     """
+    global _ins_processed_count
     ins_list = get_instructions_by_mnemonic(mnemonic)
     if ins_list:
         for ins in ins_list:
             line = ins["code_line"]
-            print(line, end="")
+            # print(line, end="")
             code = Instruction.from_text(line)
             if code.is_valid():
+                _ins_processed_count += 1
                 desc = "  -- bin: "
                 for byte in code.machine_code():
                     desc += f"{byte:02x} "
-                print(desc)
+                # print(desc)
                 continue
             return f"Instruction {line} failed."
     return None
@@ -328,6 +267,7 @@ def fill_placeholder(op: str) -> str:
 
 if __name__ == "__main__":
     _instruction_set = load_instruction_set()
+    _ins_processed_count = 0
     runner = unittest.TextTestRunner()
     runner.run(label_suite())
     runner.run(instruction_suit())

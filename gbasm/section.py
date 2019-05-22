@@ -199,10 +199,10 @@ class SectionParser:
             symbols = []  # An array of Dictionaries: { 'symbol':'ROMX',
                           #                             'param':'$4000'}
             args = self._tokens[2:]
-            for x in range(len(args)):
+            for (idx, _) in enumerate(args):
                 sym_dict = {"symbol":'', 'param':''}
-                sym = args[x].split('[')
-                if self._sec_type.is_valid_sectiontype(sym[0]) != True:
+                sym = args[idx].split('[')
+                if not self._sec_type.is_valid_sectiontype(sym[0]):
                     raise SectionTypeError(f"The section type '{sym[0]}' "\
                                            "is not a valid section type.")
                 sym_dict["symbol"] = sym[0]

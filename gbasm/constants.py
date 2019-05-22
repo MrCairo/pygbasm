@@ -1,4 +1,5 @@
 """
+Commonly used constants
 """
 DIR = "directive"
 TOK = "tokens"
@@ -9,15 +10,7 @@ INST = "INSTRUCTION"
 STOR = "STORAGE"
 SEC = "SECTION"
 
-
-class Constant:
-    PLACEHOLDER_OFFSET = 1048576
-    MAX_ADDRESS = 65535
-    INVALID_VALUE = 0xDECAFBEEFABCDEFF
-    UNDETERMINED = -1
-    UNUSED = -2
-    PH_8BIT_IMMEDIATE = "d8"
-    PH_16BIT_IMMEDIATE = "d16"
-    PH_8BIT_UNSIGNED = "a8"
-    PH_16BIT_ADDRESS = "a16"
-    PH_8BIT_SIGNED_REL = "r8"
+DIRECTIVES = ["EQU", "SET", "SECTION", "EQUS", "MACRO", "ENDM",
+              "EXPORT", "GLOBAL", "PURGE", "INCBIN", "UNION",
+              "NEXTU", "ENDU"]
+STORAGE_DIR = ["DS", "DB", "DW", "DL"]

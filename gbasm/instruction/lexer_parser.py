@@ -150,12 +150,30 @@ class LexerResults:
         """
         return self._if_found("operand1_error")
 
+    def clear_operand1_error(self) -> None:
+        """
+        Clears any operand1 error value. This is typically used if the
+        operand was originally an error due to an unresolved label that
+        gets resolved after this object was created.
+        """
+        if self._if_found("operand1_error"):
+            del self._raw["operand1_error"]
+
     def operand2_error(self) -> Error:
         """
         Contains the error found when processing operand2. A None
         indicates that there is no error.
         """
         return self._if_found("operand2_error")
+
+    def clear_operand2_error(self) -> None:
+        """
+        Clears any operand2 error value. This is typically used if the
+        operand was originally an error due to an unresolved label that
+        gets resolved after this object was created.
+        """
+        if self._if_found("operand2_error"):
+            del self._raw["operand2_error"]
 
     def placeholder(self) -> str:
         """
