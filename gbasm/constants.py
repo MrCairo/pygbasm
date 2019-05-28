@@ -3,6 +3,7 @@ Commonly used constants
 """
 DIR = "directive"
 TOK = "tokens"
+NODE = "node"  # Rpresents an internal tokenized node.
 MULT = "MULTIPLE"
 EQU = "EQU"
 LBL = "LABEL"

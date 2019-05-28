@@ -2,7 +2,7 @@
 Class(es) that implements a Z80/LR35902 instruction and Instruction Set
 """
 from gbasm.instruction.lexer_parser import LexerResults, InstructionParser
-from gbasm.basic_lexer import BasicLexer, is_node_valid
+from gbasm.basic_lexer import BasicLexer
 
 
 class Instruction:

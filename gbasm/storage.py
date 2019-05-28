@@ -68,6 +68,11 @@ class Storage:
     def __len__(self):
         return len(self._parser)
 
+    def storage_type(self):
+        if self._parser:
+            return self._parser.type_name()
+        return None
+
     @staticmethod
     def typename():
         """Returns the string name of this class's type."""
@@ -81,26 +86,26 @@ class StorageParser:
     """
     Parses storage types in tokenized format.
     """
-    _data: bytearray
-    _node: dict
-    _tok: dict = {}
-    _types = {
+    types = {
         "DS": StorageType.SPACE,
         "DB": StorageType.BYTE,
         "DW": StorageType.WORD,
         "DL": StorageType.LONG
         }
-    _storage_size = 0
 
     def __init__(self, node: dict):
-        self._data = None
-        self._node = node
+        self._data: bytearray = None
+        self._node: dict = node
+        self._tok: dict = {}
+        self._type_name: str
+        self._storage_size = 0
         if is_node_valid(node):
             self._tok = node[TOK]
             type_name = self._tok[0]
-            if type_name not in self._types:
+            if type_name not in self.types:
                 raise DefineDataError("Storage type must be DS, DB, DW, or DL")
-            self._storage_size = self._types[type_name]
+            self._storage_size = self.types[type_name]
+            self._type_name = type_name
             self._data = bytearray()
             self._parse()
 
@@ -112,6 +117,7 @@ class StorageParser:
             desc += "  "
             col = 0
             for val in self._data:
+                desc += f"VAL = {val}\n"
                 if self._tok[0] == "DW":
                     desc += f"{val:04x} "
                 elif self._tok[0] == "DL":
@@ -152,6 +158,9 @@ class StorageParser:
         if self._data:
             return self._tok[0]
         return None
+
+    def type_name(self):
+        return self._type_name
 
     def data(self):
         """Returns the storage data as an array of bytes."""
@@ -261,5 +270,7 @@ class StorageParser:
 ###############################################################################
 
 if __name__ == "__main__":
-    s = Storage.from_text("DB $01, $02, $03, $04, $05, $06, $07, $07, $ff, $ff")
+    x = Storage.from_text("DS 1")
+    print(x)
+    s = Storage.from_text("DB $01, $02, $03, $04, $05, $06, $07, $07, $ff")
     print(s)
