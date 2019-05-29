@@ -117,7 +117,6 @@ class StorageParser:
             desc += "  "
             col = 0
             for val in self._data:
-                desc += f"VAL = {val}\n"
                 if self._tok[0] == "DW":
                     desc += f"{val:04x} "
                 elif self._tok[0] == "DL":

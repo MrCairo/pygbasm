@@ -5,6 +5,7 @@ from gbasm.exception import Error, ErrorCode
 from gbasm.instruction import Registers
 from gbasm.basic_lexer import BasicLexer, is_node_valid
 from gbasm.constants import TOK
+from gbasm.label import name_valid_label_chars, valid_label_first_char
 EC = ExpressionConversion
 IS = InstructionSet
 
@@ -133,6 +134,7 @@ class LexerResults:
         return self._if_found("mnemonic")
 
     def mnemonic_error(self) -> Error:
+        """ The error if the mnemonic was invalid. """
         return self._if_found("mnemonic_error")
 
     def operand1(self) -> str:
@@ -274,6 +276,10 @@ class InstructionParser:
             else:  # Not a register or direct match. Maybe a number or label.
                 if self._if_number():
                     continue
+                # Is this _maybe_ a placeholder? Store it as a possible one.
+                if arg[0] in valid_label_first_char():
+                    if name_valid_label_chars(arg):
+                        self.state.operands['placeholder'] = arg
         if "!" in self.state.roamer:
             # This means that the instruction was found and processed
             dec_val = self.state.roamer["!"]

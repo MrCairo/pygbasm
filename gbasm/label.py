@@ -55,7 +55,7 @@ class Label():
             self._scope = Label.GLOBAL_SCOPE
         elif name.endswith(":") and name.startswith("."):
             self._scope = Label.LOCAL_SCOPE
-        elif (name[0].isalpha() and _name_valid_chars(name)):
+        elif (name[0].isalpha() and name_valid_label_chars(name)):
             self._scope = Label.LOCAL_SCOPE
             self._constant = True
         else:
@@ -178,7 +178,7 @@ def valid_label_first_char():
     return string.ascii_letters + "."
 
 
-def _name_valid_chars(line: str):
+def name_valid_label_chars(line: str):
     valid = True
     for c in line:
         if c in Labels().valid_chars:
