@@ -2,7 +2,9 @@
 Z80 Assembler
 """
 from enum import IntEnum, auto
+from collections import namedtuple
 import tempfile
+import pprint
 
 from gbasm.reader import BufferReader, FileReader, Reader
 from gbasm.section import Section
@@ -11,17 +13,15 @@ from gbasm.exception import ParserException, Error, ErrorCode
 from gbasm.equate import Equate
 from gbasm.instruction import Instruction, InstructionPointer, InstructionSet
 from gbasm.resolver import Resolver
-from gbasm.label import Label, Labels, is_valid_label
+from gbasm.label import Label, Labels
 from gbasm.conversions import ExpressionConversion
 from gbasm.basic_lexer import BasicLexer, is_multiple_node, is_node_valid
-from gbasm.constants import DIR, TOK, EQU, LBL, INST, STOR, SEC
+from gbasm.constants import NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC
 
 
-_instructions: [Instruction] = []
-_clean_lines: [str] = []
-_errors: [Error] = []
-_sections: [Section] = []
-_storage: [Storage] = []
+class CodeNode(namedtuple('CodeNode', 'type_name, code_obj')):
+    pass
+
 
 class Action(IntEnum):
     """The current state of the parser state machine."""
@@ -32,7 +32,6 @@ class Action(IntEnum):
     STORAGE = auto()
     CODE = auto()
     IGNORE = auto()
-
 
 class ParserState(IntEnum):
     IDLE = auto()
@@ -60,12 +59,8 @@ class Assembler:
 
     def __init__(self):
         self.filename = None
-        self._buffer = None
         self.reader = None
         self.line_no = 0
-        self.errors = []
-        self.warnings = []
-        self._assemble: [dict] = []
         self._parser = None
 
     def load_from_file(self, filename):
@@ -75,20 +70,18 @@ class Assembler:
 
     def load_from_buffer(self, buffer_in):
         """Loads the assembly program from a memory buffer."""
-        self._buffer = buffer_in
-        self.reader = BufferReader(self._buffer)
+        self.reader = BufferReader(buffer_in)
 
     def parse(self):
         """Starts the assembler's parser."""
         self._parser = Parser(self.reader)
-        self._parser.parse()
-        self._parser.resolve_bad()
-
-    def add_assembled(self, directive: str, assembled_object):
-        self._assemble.append({DIR: directive,
-                               "OBJ": assembled_object})
+        print("-------------- Stage 1 -------------")
+        self._parser.stage1()
+        print("-------------- Stage 2 -------------")
+        self._parser.stage2()
 
     # --------========[ End of class ]========-------- #
+
 
 class Parser:
     """
@@ -96,194 +89,138 @@ class Parser:
     """
     def __init__(self, reader: Reader):
         self._reader = reader
-        self._state = ParserState.IDLE
-        self._action = Action.INITIAL
         self._tf = tempfile.TemporaryFile()
-        self._fileline = ""
         self._line_no = 0
         self._lexer = BasicLexer(reader)
-        self._assembled: [dict] = []
+        self._code: [CodeNode] = []
         self._bad: [dict] = []
+        self._sections: [Section] = []
 
     def __hash__(self):
         return self._tf.__hash__()
 
-    def parse(self):
+    def stage1(self):
         """Starts the parsing of the file specified in the Reader class."""
         self._line_no = 0
-        start_file_pos = self._reader.get_position()
-
+        nodes: [CodeNode] = []
         # Pass 1 resolves symbols. Any global symbols are stored
         # in the Global symbols array.
-        self._state = ParserState.RESOLVE
-        self._action = Action.UNDETERMINED
         self._lexer.tokenize()
-        print("Pass 1....")
-        self.preprocess()
-        return
-
-        self._line_no = 0
-        self._state = ParserState.ASSEMBLE
-        self._reader.set_position(start_file_pos)
-        while self._reader.is_eof() is False:
-            line = self._reader.read_line()
-            if line and line.strip():
-                line = line.upper().split(";")[0]  # drop comments
-                self._line_no += 1
-                self._fileline = f"{self._reader.filename()}:{self._line_no}"
-                self._assemble(line)
-
-    #
-    # Pre-process step. Symbol/SECTION/EQU processing.
-    #
-    def preprocess(self) -> None:
-        """
-        Preprocesses the line in the file. A return value of None
-        indicates a success, otherwise an Error object is returned.
-        """
         for node in self._lexer.tokenized_list():
-            if not is_node_valid(node):
-                self._bad.append(node)
-                continue
-            if node[DIR] == SEC:
-                sec = self._process_section(node[TOK])
-                if sec is None:
-                    msg = f"Error in parsing section directive. "\
-                        "{self.filename}:{self._line_no}"
-                    err = Error(ErrorCode.INVALID_SECTION_POSITION,
-                                supplimental=msg,
-                                source_line=self._line_no)
-                    _errors.append(err)
-                continue
+            nodes = self._process_node(node)
+            if nodes:
+                self._code.extend(nodes)
 
+    def stage2(self):
+        """
+        Performs stage 2 compile which is an attempt to resolve and nodes
+        with a type of NODE which indicates that it is unprocessed likely
+        because it contained a forward referenced label. If not, then it's
+        a real error.
+        """
+        new_code: [CodeNode] = []
+        pp = pprint.PrettyPrinter(indent=2, compact=False, width=40)
+        for (_, code_node) in enumerate(self._code):
+            type_name = code_node.type_name
+            code = code_node.code_obj
+            if type_name == NODE:
+                print(f"\nType name: {type_name}")
+                if not is_node_valid(code):
+                    continue
+                print(f"Code: {code}")
+                new_nodes = self._process_node(code)
+                if new_nodes:
+                    print("New Nodes:")
+                    pp.pprint(new_nodes)
+                    new_code.extend(new_nodes)
+                else:
+                    print("Invalid code.")
+            else:
+                new_code.append(code_node)
+        self._code.clear()
+        self._code = new_code
+
+    def _process_node(self, node: dict) -> [CodeNode]:
+        nodes: [CodeNode] = []
+        if not is_node_valid(node):
+            self._bad.append(node)
+            return None
+        if node[DIR] == SEC:
+            sec = self._process_section(node[TOK])
+            if sec is None:
+                msg = f"Error in parsing section directive. "\
+                    "{self.filename}:{self._line_no}"
+                err = Error(ErrorCode.INVALID_SECTION_POSITION,
+                            supplimental=msg,
+                            source_line=self._line_no)
+                node["error"] = err
+                nodes.append(CodeNode(NODE, node))
+            else:
+                nodes.append(CodeNode(SEC, sec))
+            return nodes
+        if is_multiple_node(node):
             # The MULTIPLE case is when a LABEL is on the same line as some
             # other data like an instruction. In some cases this is common
             # like an EQU that is supposed to contain both a LABEL and a
             # value or less common like a LABEL on the same line as an
             # INSTRUCTION.
-            if is_multiple_node(node):
-                if not self._process_multi_node(node):
-                    continue
-            # Just check for a label on it's own line.
-            if node[DIR] == LBL:
-                label = self._process_label(node)
-                Labels().add(label)
-            # Lastly, if not any of the above, it _might_be an instruction
-            elif node[DIR] == INST:
-                self._process_instruction(node)
-
-    def resolve_bad(self):
-        """
-        """
-        for (idx, node) in enumerate(self._bad):
-            if not is_node_valid(node):
-                continue
-            ins = None
-            if node[DIR] == INST:
-                ins = Instruction(node)
+            multi = self._process_multi_node(node)
+            if not multi:
+                nodes.append(CodeNode(NODE, node))
             else:
-                print(f"Node isn't an Inst: {node}")
-                continue
-            if ins.is_valid():
-                continue
-            if ins.parse_result().mnemonic_error() is None:
-                ins = Resolver().resolve_instruction(ins, IP().location)
-                print(ins)
-
-    def _add_assembled(self, directive: str, assembled_object):
-        self._assembled.append({DIR: directive,
-                                "OBJ": assembled_object})
-
-    def _assemble(self, line: str):
-        clean: str = line.upper().strip()
-        print(f">>> Processing: {line}")
-        self._action = Action.UNDETERMINED
-
-        if not clean:
-            return
-
-        if clean.startswith(SEC):
-            section = self._find_section(line)
-            if section:
-                self._action = Action.SECTION
-
-        elif " EQU " in clean:
-            self._action = Action.EQU
-
-        elif clean[:3] in ["DS ", "DB ", "DW ", "DL "]:
-            print(f"Processing {clean[:2]} Line {self._line_no}")
-            self._action = Action.STORAGE
-            if self._process_storage(clean[3:]) is False:
-                msg = f"Error on line {self._fileline} \n>> {clean}"
-                raise ParserException(msg, line_number=self._line_no)
-        elif line[0] in Labels().first_chars:
-            """
-            All the work to process labels was done in the pre-process
-            step.  Now, if there is an instruction after the label, we
-            need to process it.
-            """
-            words = clean.split(":")
-            if len(words) > 1:
-                clean = words[1].strip()  # Maybe code?
-                self._action = Action.UNDETERMINED
+                nodes.extend(multi)
+        # Just check for a label on it's own line.
+        elif node[DIR] == LBL:
+            label = self._process_label(node)
+            Labels().add(label.code_obj)
+            nodes.append(label)
+        # Lastly, if not any of the above, it _might_be an instruction
+        elif node[DIR] == INST:
+            ins = self._process_instruction(node)
+            if ins:
+                nodes.append(ins)
             else:
-                self._action = Action.IGNORE
+                nodes.append(CodeNode(NODE, node))
+        return nodes
 
-        if not clean:
-            return  # Leave if there is nothing else to parse.
-
-        # UNDETERMINED means that it's likely an instruction.
-        # CODE means that it's NOT an EQU or SECTION or if a LABEL was
-        # processed.
-        if self._action == Action.UNDETERMINED:
-            ins = self._process_instruction(clean)
-            if ins is None:
-                print(f"UNABLE TO PARSE INSTRUCTION [{clean}]")
-            else:
-                print(ins)
-        return
-
-    @staticmethod
-    def _label_def_in_string(line: str) -> str:
-        # Validate column0. Must not be a space or
-        col0 = None if not line else line[0]
-        if col0 is not None:
-            col0 = None if col0 not in Labels.valid_chars else col0
-
-        if col0 is None:
-            return None
-
-        parts = line.split(" ")
-        return parts[0]
-
-    def _process_multi_node(self, node: dict) -> bool:
+    def _process_multi_node(self, node: dict) -> [CodeNode]:
         tok_list = node[TOK]
+        nodes: [CodeNode] = []
         if len(tok_list) < 2:
-            err = Error(ErrorCode.INVALID_DECLARATION,
-                        source_line=self._line_no)
-            _errors.append(err)
-            return False
+            # err = Error(ErrorCode.INVALID_DECLARATION,
+            #             source_line=self._line_no)
+            return None
         if tok_list[0][DIR] == LBL:
-            label = self._process_label(tok_list[0])
-            Labels().add(label)
-
+            clean = tok_list[0][TOK].strip("()")
+            existing = Labels()[clean]
+            if not existing:
+                label = self._process_label(tok_list[0])
+                Labels().add(label.code_obj)
+            else:
+                label = CodeNode(LBL, existing)
+            nodes.append(label)
         # Equate has it's own required label. It's not a standard label
         # in that it can't start with a '.' or end with a ':'
         if tok_list[1][DIR] == EQU:
-            self._process_equate(node[TOK])
+            equ = self._process_equate(node[TOK])
+            nodes.append(equ)
         # An instruction is allowed to be on the same line as a label.
         elif tok_list[1][DIR] == INST:
-            self._process_instruction(tok_list[1])
+            ins = self._process_instruction(tok_list[1])
+            nodes.append(ins)
         # Storage values can be associated with a label. The label
         # then can be used almost like an EQU label.
         elif tok_list[1][DIR] == STOR:
             storage = self._process_storage(tok_list[1])
             if storage:
-                _storage.append(storage)
-                IP().move_location_relative(len(storage))
-        return True
+                IP().move_location_relative(len(storage.code_obj))
+                nodes.append(storage)
+                return nodes
+        else:
+            nodes.append(CodeNode(NODE, node))
+        return nodes
 
-    def _process_instruction(self, node: dict):
+    def _process_instruction(self, node: dict) -> CodeNode:
         """
         Processes the instruction defined in the tokenized node.
         """
@@ -293,10 +230,12 @@ class Parser:
             return None
         ins = Instruction(node)
         if ins.parse_result().is_valid():
-            _instructions.append(ins)
             IP().move_relative(len(ins.machine_code()))
-            return ins
-        # Make sure the mnemonic is at least valid.
+            return CodeNode(INST, ins)
+        # Instruction is not valid. This could mean either it really is
+        # invalid (typo, wrong argument, etc) or that it has a label. To
+        # get started, just check to make sure the mnemonic is at least
+        # valid.
         if ins.parse_result().mnemonic_error() is None:
             ins = Resolver().resolve_instruction(ins, IP().location)
             if ins and ins.is_valid():
@@ -304,38 +243,11 @@ class Parser:
         if ins and ins.is_valid():
             if address is not None:
                 ins.address = address
-            _instructions.append(ins)
             IP().move_relative(len(ins.machine_code()))
-        else:
-            self._bad.append(node)
-            print(f"ERROR: {node}")
-        return ins
+            return CodeNode(INST, ins)
+        return CodeNode(NODE, node)  # Error, return the errant node
 
-    def _process_instruction_line(self, line: str):
-        address = None
-        ins = None
-        if line is not None:
-            ins = Instruction(line)
-            if ins.parse_result().is_valid():
-                print("--- Resolved:")
-                IP().move_relative(len(ins.machine_code()))
-                return ins
-            # Make sure the mnemonic is at least valid.
-            if ins.parse_result().mnemonic_error() is None:
-                ins = Resolver().resolve_instruction(ins, IP().location)
-                if ins and ins.is_valid():
-                    IP().move_relative(len(ins.machine_code()))
-                    ins = self._process_label(line)
-        if ins and ins.is_valid():
-            if address is not None:
-                ins.address = address
-            _instructions.append(ins)
-            IP().move_relative(len(ins.machine_code()))
-        else:
-            print(f"ERROR: {line}")
-        return ins
-
-    def _process_label(self, node: dict, value=None):
+    def _process_label(self, node: dict, value=None) -> CodeNode:
         if not node:
             return None
         if node[DIR] != LBL:
@@ -348,7 +260,38 @@ class Parser:
         if not value:
             loc = IP().location
         label = Label(clean, loc)
-        return label
+        return CodeNode(LBL, label)
+
+    def _process_equate(self, tokens: list) -> CodeNode:
+        """Process an EQU statement. """
+        # The tokens should always be multiple since an EQU contains
+        # a label followed by the EQU to associate with the label
+        if len(tokens) < 2:
+            return None
+        if tokens[0][DIR] != 'LABEL':
+            return None
+        if tokens[1][DIR] != 'EQU':
+            return None
+        result = Equate(tokens)
+        if result:
+            result.parse()
+            lbl = Label(result.name(), result.value(), force_const=True)
+            Labels().add(lbl)
+            return CodeNode(EQU, lbl)
+        err = Error(ErrorCode.INVALID_LABEL_NAME,
+                    source_file=self._reader.filename,
+                    source_line=int(self._reader.line))
+        tokens["error"] = err
+        # _errors.append(err)
+        return CodeNode(NODE, tokens)
+
+    def _process_storage(self, node: dict) -> CodeNode:
+        if not node:
+            return None
+        sto = Storage(node)
+        # print(f"Processing Storage type {sto.storage_type()}")
+        # print(f"Storage len = {len(sto)}")
+        return CodeNode(STOR, sto)
 
     def _find_section(self, line: str) -> Section:
         try:
@@ -360,7 +303,7 @@ class Parser:
             raise ParserException(msg, line_number=self._line_no)
         else:
             if section:
-                for _, val in enumerate(_sections):
+                for _, val in enumerate(self._sections):
                     if val.name() == section.name():
                         return section
             return None
@@ -376,119 +319,23 @@ class Parser:
             return None
         if section is None:  # not found, create a new one.
             secn = Section(tokens)
-            _sections.append(secn)
+            # print("Processing SECTION")
+            self._sections.append(secn)
             num_addr, _ = secn.address_range()
             str_addr = EC().expression_from_value(num_addr,
                                                   "$$")  # 16-bit hex value
             IP().base_address = str_addr
+
             return secn
+
         return None
 
-    def _process_equate(self, tokens: list) -> Label:
-        """Process an EQU statement. """
-        # The tokens should always be multiple since an EQU contains
-        # a label followed by the EQU to associate with the label
-        if len(tokens) < 2:
-            return None
-        if tokens[0][DIR] != 'LABEL':
-            return None
-        if tokens[1][DIR] != 'EQU':
-            return None
-        result = Equate(tokens)
-        if result:
-            result.parse()
-            lbl = Label(result.name(), result.value(), force_const=True)
-            Labels().add(lbl)
-            return lbl
-        err = Error(ErrorCode.INVALID_LABEL_NAME,
-                    source_file=self._reader.filename,
-                    source_line=int(self._reader.line))
-        _errors.append(err)
-        return None
-
-    def _process_storage(self, node: dict):
-        if not node:
-            return
-        return Storage(node)
-
-    @staticmethod
-    def _join_parens(line) -> str:
-        new_str = ""
-        paren = 0
-        for c in line:
-            if c == " " and paren > 0:
-                continue
-            if c in "([{":
-                paren += 1
-            elif c in ")]}":
-                paren -= 1
-            paren = max(0, paren) # If Negative set to 0
-            new_str += c
-        return new_str
-
-    @staticmethod
-    def _tokenize_line(line) -> dict:
-        clean = line.strip().split(';')[0]
-        if not clean:
-            return None  # Empy line
-
-        clean_split = clean.split()
-        tokens = {}
-        line = Parser._join_parens(line)
-        if clean.startswith(SEC):
-            tokens[DIR] = SEC
-            line = line.replace(',', ' ')
-            tokens[TOK] = clean.split()
-            return tokens
-        if clean.startswith("EQU "):
-            clean = clean.strip()
-            tokens[DIR] = "EQU"
-            tokens[TOK] = clean_split
-            return tokens
-        if clean_split[0] in ["DS", "DB", "DW", "DL"]:
-            tokens[DIR] = STOR
-            tokens[TOK] = clean_split
-            return tokens
-        if IS().is_mnemonic(clean_split[0]):
-            tokens[DIR] = INST
-            tokens[TOK] = clean_split
-            return tokens
-        if line[0] in Labels().first_chars:
-            if is_valid_label(clean_split[0]):
-                data = [{"type": LBL,
-                         "data": clean_split[0]}]
-                tokens[DIR] = "MULTIPLE"
-                if len(clean_split) > 1:
-                    remainder = ' '.join(clean_split[1:])
-                    more = Parser._tokenize_line(remainder)
-                    data.append(more)
-                tokens[TOK] = data
-                return tokens
-        tokens[DIR] = "UNKNOWN"
-        tokens[TOK] = clean.split()
-        return tokens
 
 class Macro(object):
     """
     """
     def __init__(self, reader: FileReader):
         self.reader = reader
-
-
-def _substitute_label(line: str, label: Label, placeholder: str = None) -> str:
-    output = ""
-    line = "" if line is None else line
-    components = line.split(" ")
-    for item in components:
-        result = item
-        if label.clean_name in item:
-            val = EC().expression_from_value(label.value, "$")
-            if val:
-                result = item.replace(label.clean_name, val)
-        if result:
-            output += result + " "
-    return output.strip()
-
 
 if __name__ == "__main__":
     asm = """
@@ -528,7 +375,7 @@ SECTION "game", ROMX
     #    print(item)
 
     # print(f"Equates: {p.equates}")
-    print("--- BEGIN LABELS DUMP ---")
-    for item in Labels().items():
-        print(item)
-    print("---- END LABELS DUMP ----")
+    # print("--- BEGIN LABELS DUMP ---")
+    # for item in Labels().items():
+    #    print(item)
+    # print("---- END LABELS DUMP ----")

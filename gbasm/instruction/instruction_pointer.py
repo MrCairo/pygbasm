@@ -25,6 +25,21 @@ class InstructionPointer():
         return desc
 
     @property
+    def pointer(self) -> int:
+        """Returns the current location or IP."""
+        return self._pointer
+
+    @pointer.setter
+    def pointer(self, value):
+        """Sets the current location or IP."""
+        if value in range(0, 65536):
+            print(f"Setting IP to {hex(value)}")
+            self._pointer = value
+
+    def move_pointer_relative(self, val) -> bool:
+        return self.move_location_relative(val)
+
+    @property
     def location(self) -> int:
         """Returns the current location or IP."""
         return self._pointer
@@ -33,6 +48,7 @@ class InstructionPointer():
     def location(self, value):
         """Sets the current location or IP."""
         if value in range(0, 65536):
+            print(f"IP(): Setting IP to {hex(value)}")
             self._pointer = value
 
     def move_location_relative(self, val) -> bool:
@@ -46,6 +62,7 @@ class InstructionPointer():
         """
         newloc = self._pointer + val
         if 65536 > newloc >= 0:
+            print(f"IP(): Moving pointer {hex(val)} bytes. New Address = {hex(newloc)}")
             self._pointer = newloc
             return True
         return False
@@ -65,6 +82,7 @@ class InstructionPointer():
         # A value can be an expression such as $FFD2
         _conv = ExpressionConversion()
         address = _conv.value_from_expression(new_value)
+        print(f"IP: Setting Address to {hex(address)}")
         if address is None:
             address = 0x0000
         else:

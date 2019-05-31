@@ -2,7 +2,7 @@
 Class(es) that implements a Z80/LR35902 instruction and Instruction Set
 """
 from gbasm.instruction.lexer_parser import LexerResults, InstructionParser
-from gbasm.basic_lexer import BasicLexer, is_node_valid
+from gbasm.basic_lexer import BasicLexer
 
 
 class Instruction:
@@ -15,9 +15,9 @@ class Instruction:
         self._lex_results: LexerResults = ip.result()
         self._placeholder_string = None
 
-
     @classmethod
     def from_text(cls, text: str):
+        """ Builds and Instruction object from plain text. """
         lex = BasicLexer.from_text(text)
         if lex:
             lex.tokenize()
@@ -27,7 +27,7 @@ class Instruction:
     def __str__(self):
         desc = "   Mnemonic = " + self.mnemonic() + "\n"
         if self._lex_results.lexer_tokens().operands():
-            desc +=  "  Arguments = " + ',' . \
+            desc += "  Arguments = " + ',' . \
                 join(f"{x}" for x in
                      self._lex_results.lexer_tokens().operands())
             desc += "\n"
@@ -49,11 +49,15 @@ class Instruction:
             if self.placeholder():
                 desc += "Placeholder = " + self.placeholder()
                 desc += "\n"
+            if self._lex_results.unresolved():
+                desc += "Unresolved = " + self._lex_results.unresolved()
+                desc += "\n"
         return desc
 
     def __repr__(self):
         node = self._node
-        del node['source_line']
+        if "source_line" in node:
+            del node["source_line"]
         desc = f"Instruction({self._node})"
         return desc
 
@@ -104,6 +108,9 @@ class Instruction:
 ###############################################################################
 
 if __name__ == "__main__":
+    ins = Instruction.from_text("JR .RELATIVE")
+    print(ins)
+
     ins = Instruction.from_text("LD HL, SP+$17")
     print(ins)
 

@@ -5,6 +5,7 @@ from gbasm.exception import Error, ErrorCode
 from gbasm.instruction import Registers
 from gbasm.basic_lexer import BasicLexer, is_node_valid
 from gbasm.constants import TOK
+from gbasm.label import name_valid_label_chars, valid_label_first_char
 EC = ExpressionConversion
 IS = InstructionSet
 
@@ -133,6 +134,7 @@ class LexerResults:
         return self._if_found("mnemonic")
 
     def mnemonic_error(self) -> Error:
+        """ The error if the mnemonic was invalid. """
         return self._if_found("mnemonic_error")
 
     def operand1(self) -> str:
@@ -188,6 +190,13 @@ class LexerResults:
         """
         return self._if_found("placeholder")
 
+    def unresolved(self) -> str:
+        """
+        Returns any value that is/was considered unresolved when the
+        instruction was initially parsed.
+        """
+        return self._if_found("unresolved")
+
     def is_valid(self):
         """
         Returns true if operand1 or operand2 contains an error.
@@ -217,6 +226,9 @@ class InstructionParser:
 
     @classmethod
     def from_text(cls, instruction: str):
+        """
+        Constructs an InstructionParser object from an instruction string.
+        """
         if instruction:
             lex = BasicLexer.from_text(instruction)
             if lex:
@@ -274,6 +286,11 @@ class InstructionParser:
             else:  # Not a register or direct match. Maybe a number or label.
                 if self._if_number():
                     continue
+                # Is this _maybe_ a placeholder? Store it as a possible one.
+                tmp = arg.strip("()")
+                if tmp[0] in valid_label_first_char():
+                    if name_valid_label_chars(tmp):
+                        self.state.operands['unresolved'] = tmp
         if "!" in self.state.roamer:
             # This means that the instruction was found and processed
             dec_val = self.state.roamer["!"]
@@ -286,8 +303,6 @@ class InstructionParser:
         failure = {"mnemonic": mnemonic, "error": True}
         self.state.merge_operands(failure)
         failure = self.state.get_instruction_detail(None)
-        if failure:
-            failure["mnemonic"] = mnemonic
         return failure
 
     def _is_within_parens(self, value: str) -> bool:
