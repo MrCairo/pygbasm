@@ -139,10 +139,7 @@ def op_jr(lex: LexerResults) -> Instruction:
         label = maybe_label(clean2)
         if label is None:
             return None
-        print(f"RESOLVE JR compute relative IP = {hex(IP().location)}")
-        print(f"from = {hex(label.value())}")
         rel = compute_relative(IP().location, label.value())
-        print(f"Relative value is {rel}")
         val = EC().expression_from_value(rel, "$")
         args.append(format_with_parens(val, paren2))
         lex.clear_operand2_error()
@@ -155,8 +152,7 @@ def op_jr(lex: LexerResults) -> Instruction:
                 return None
     if len(args) == 2:
         return Instruction.from_text(f"JR {args[0]}, {args[1]}")
-    else:
-        return Instruction.from_text(f"JR {args[0]}")
+    return Instruction.from_text(f"JR {args[0]}")
 
 def op_ld(lex: LexerResults) -> Instruction:
     args: list = []

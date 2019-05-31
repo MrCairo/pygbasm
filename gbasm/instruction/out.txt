@@ -1,0 +1,73 @@
+   Mnemonic = JR
+  Arguments = .RELATIVE
+  Op1 error = Error: The operand was not a valid numeric value: [The argument is not a numeric value]
+
+   Mnemonic = LD
+  Arguments = HL,SP+$17
+       Code = f8 17 
+Placeholder = SP+r8
+
+   Mnemonic = JP
+  Arguments = NZ,$0010
+       Code = c2 10 00 
+Placeholder = a16
+
+   Mnemonic = LD
+  Arguments = A,($FF00)
+       Code = fa 00 ff 
+Placeholder = (a16)
+
+   Mnemonic = LD
+  Arguments = ($FF00),A
+       Code = ea 00 ff 
+Placeholder = (a16)
+
+   Mnemonic = RRCA
+       Code = 0f 
+
+   Mnemonic = ADD
+  Arguments = HL,SP
+       Code = 39 
+
+   Mnemonic = LD
+  Arguments = A,(HL-)
+       Code = 3a 
+
+   Mnemonic = ADD
+  Arguments = SP,$25
+       Code = e8 25 
+Placeholder = r8
+
+   Mnemonic = LD
+  Arguments = B,C
+       Code = 41 
+
+   Mnemonic = NOP
+       Code = 00 
+
+   Mnemonic = JP
+  Arguments = (HL)
+       Code = e9 
+
+   Mnemonic = LD
+  Arguments = A,($AABB)
+       Code = fa bb aa 
+Placeholder = (a16)
+
+   Mnemonic = SET
+  Arguments = 3,(HL)
+       Code = de 
+
+   Mnemonic = XOR
+  Arguments = $FF
+       Code = ee ff 
+Placeholder = d8
+
+   Mnemonic = JR
+  Arguments = .RELATIVE
+  Op1 error = Error: The operand was not a valid numeric value: [The argument is not a numeric value]
+
+   Mnemonic = NOP
+  Arguments = A
+  Op1 error = Error: The operand provided is invalid: [Register A is not valid with this mnemonic]
+

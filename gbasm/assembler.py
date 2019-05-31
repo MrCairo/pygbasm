@@ -18,11 +18,10 @@ from gbasm.conversions import ExpressionConversion
 from gbasm.basic_lexer import BasicLexer, is_multiple_node, is_node_valid
 from gbasm.constants import NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC
 
+
 class CodeNode(namedtuple('CodeNode', 'type_name, code_obj')):
     pass
 
-_errors: [Error] = []
-_sections: [Section] = []
 
 class Action(IntEnum):
     """The current state of the parser state machine."""
@@ -83,6 +82,7 @@ class Assembler:
 
     # --------========[ End of class ]========-------- #
 
+
 class Parser:
     """
     The main assembler parser class.
@@ -94,6 +94,7 @@ class Parser:
         self._lexer = BasicLexer(reader)
         self._code: [CodeNode] = []
         self._bad: [dict] = []
+        self._sections: [Section] = []
 
     def __hash__(self):
         return self._tf.__hash__()
@@ -186,9 +187,8 @@ class Parser:
         tok_list = node[TOK]
         nodes: [CodeNode] = []
         if len(tok_list) < 2:
-            err = Error(ErrorCode.INVALID_DECLARATION,
-                        source_line=self._line_no)
-            _errors.append(err)
+            # err = Error(ErrorCode.INVALID_DECLARATION,
+            #             source_line=self._line_no)
             return None
         if tok_list[0][DIR] == LBL:
             clean = tok_list[0][TOK].strip("()")
@@ -303,7 +303,7 @@ class Parser:
             raise ParserException(msg, line_number=self._line_no)
         else:
             if section:
-                for _, val in enumerate(_sections):
+                for _, val in enumerate(self._sections):
                     if val.name() == section.name():
                         return section
             return None
@@ -320,7 +320,7 @@ class Parser:
         if section is None:  # not found, create a new one.
             secn = Section(tokens)
             # print("Processing SECTION")
-            _sections.append(secn)
+            self._sections.append(secn)
             num_addr, _ = secn.address_range()
             str_addr = EC().expression_from_value(num_addr,
                                                   "$$")  # 16-bit hex value

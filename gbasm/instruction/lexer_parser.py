@@ -190,6 +190,13 @@ class LexerResults:
         """
         return self._if_found("placeholder")
 
+    def unresolved(self) -> str:
+        """
+        Returns any value that is/was considered unresolved when the
+        instruction was initially parsed.
+        """
+        return self._if_found("unresolved")
+
     def is_valid(self):
         """
         Returns true if operand1 or operand2 contains an error.
@@ -219,6 +226,9 @@ class InstructionParser:
 
     @classmethod
     def from_text(cls, instruction: str):
+        """
+        Constructs an InstructionParser object from an instruction string.
+        """
         if instruction:
             lex = BasicLexer.from_text(instruction)
             if lex:
@@ -277,9 +287,10 @@ class InstructionParser:
                 if self._if_number():
                     continue
                 # Is this _maybe_ a placeholder? Store it as a possible one.
-                if arg[0] in valid_label_first_char():
-                    if name_valid_label_chars(arg):
-                        self.state.operands['placeholder'] = arg
+                tmp = arg.strip("()")
+                if tmp[0] in valid_label_first_char():
+                    if name_valid_label_chars(tmp):
+                        self.state.operands['unresolved'] = tmp
         if "!" in self.state.roamer:
             # This means that the instruction was found and processed
             dec_val = self.state.roamer["!"]
@@ -292,8 +303,6 @@ class InstructionParser:
         failure = {"mnemonic": mnemonic, "error": True}
         self.state.merge_operands(failure)
         failure = self.state.get_instruction_detail(None)
-        if failure:
-            failure["mnemonic"] = mnemonic
         return failure
 
     def _is_within_parens(self, value: str) -> bool:

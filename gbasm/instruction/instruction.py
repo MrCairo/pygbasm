@@ -49,6 +49,9 @@ class Instruction:
             if self.placeholder():
                 desc += "Placeholder = " + self.placeholder()
                 desc += "\n"
+            if self._lex_results.unresolved():
+                desc += "Unresolved = " + self._lex_results.unresolved()
+                desc += "\n"
         return desc
 
     def __repr__(self):
