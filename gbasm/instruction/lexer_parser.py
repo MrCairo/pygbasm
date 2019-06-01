@@ -300,9 +300,11 @@ class InstructionParser:
             self.state.prepend_bytes(hex_data)
             return self.state.get_instruction_detail(byte)
         # Failiure case
-        failure = {"mnemonic": mnemonic, "error": True}
+        failure = {}
         self.state.merge_operands(failure)
         failure = self.state.get_instruction_detail(None)
+        failure["mnemonic"] = mnemonic
+        failure["error"] = True
         return failure
 
     def _is_within_parens(self, value: str) -> bool:
