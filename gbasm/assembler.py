@@ -79,6 +79,8 @@ class Assembler:
         self._parser.stage1()
         print("-------------- Stage 2 -------------")
         self._parser.stage2()
+        print("-------------- Results -------------")
+        self._parser.print_code()
 
     # --------========[ End of class ]========-------- #
 
@@ -119,26 +121,34 @@ class Parser:
         a real error.
         """
         new_code: [CodeNode] = []
-        pp = pprint.PrettyPrinter(indent=2, compact=False, width=40)
         for (_, code_node) in enumerate(self._code):
             type_name = code_node.type_name
             code = code_node.code_obj
             if type_name == NODE:
-                print(f"\nType name: {type_name}")
                 if not is_node_valid(code):
                     continue
-                print(f"Code: {code}")
                 new_nodes = self._process_node(code)
                 if new_nodes:
-                    print("New Nodes:")
-                    pp.pprint(new_nodes)
                     new_code.extend(new_nodes)
-                else:
-                    print("Invalid code.")
             else:
                 new_code.append(code_node)
         self._code.clear()
         self._code = new_code
+
+    def print_code(self):
+        """Print out the code"""
+        pp = pprint.PrettyPrinter(indent=2, compact=False, width=40)
+        for code_node in self._code:
+            type_name = code_node.type_name
+            code = code_node.code_obj
+            if type_name == NODE:
+                print("Invalid instruction:")
+                pp.pprint(code)
+                continue
+            desc = f"\n\nType: {type_name}\n"
+            desc += "Code:"
+            desc += pp.pformat(code)
+            print(desc)
 
     def _process_node(self, node: dict) -> [CodeNode]:
         nodes: [CodeNode] = []
@@ -237,9 +247,9 @@ class Parser:
         # get started, just check to make sure the mnemonic is at least
         # valid.
         if ins.parse_result().mnemonic_error() is None:
-            ins = Resolver().resolve_instruction(ins, IP().location)
-            if ins and ins.is_valid():
-                IP().move_relative(len(ins.machine_code()))
+            ins2 = Resolver().resolve_instruction(ins, IP().location)
+            if ins2 and ins2.is_valid():
+                IP().move_relative(len(ins2.machine_code()))
         if ins and ins.is_valid():
             if address is not None:
                 ins.address = address

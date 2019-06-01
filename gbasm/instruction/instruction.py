@@ -58,6 +58,8 @@ class Instruction:
         node = self._node
         if "source_line" in node:
             del node["source_line"]
+        if self._lex_results.unresolved():
+            node["extra"] = {"unresolved": self._lex_results.unresolved()}
         desc = f"Instruction({self._node})"
         return desc
 
