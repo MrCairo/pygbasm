@@ -3,6 +3,7 @@ Commonly used constants
 """
 DIR = "directive"
 TOK = "tokens"
+EXT = "extra"
 NODE = "node"  # Rpresents an internal tokenized node.
 MULT = "MULTIPLE"
 EQU = "EQU"

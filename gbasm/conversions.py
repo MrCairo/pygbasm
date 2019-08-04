@@ -21,8 +21,6 @@ class ExpressionConversion():
 
     '%' -- A binary value.
     """
-    _instance = None
-    _to_dec = None
 
     def __init__(self):
         self._to_dec = {
