@@ -24,10 +24,9 @@ class Resolver():
         Attempts top resolve instructions that failed initial resolution
         which can be due to the presence of a label. Only the instructions
         that can have variable parameters are processed. Any instruction
-        that's that is passed in that doesn't qualify for resolution is
-        just returned.
-        current_address is used to compute relative offsets given a label
-        with an absolute position.
+        that's is passed in that doesn't qualify for resolution is just
+        returned.  current_address is used to compute relative offsets
+        given a label with an absolute position.
         """
         if self._jump_table is None:
             self._jump_table = {
@@ -148,6 +147,7 @@ def op_jr(lex: LexerResults) -> Instruction:
             val = EC().value_from_expression(clean2)
             if val:
                 args.append(format_with_parens(val, paren2))
+                lex.clear_operand2_error()
             else:
                 return None
     if len(args) == 2:

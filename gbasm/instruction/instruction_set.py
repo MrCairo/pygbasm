@@ -99,7 +99,7 @@ class InstructionSet():
                     "D": {"d8": {"!": 0x16}},
                     "H": {"d8": {"!": 0x26}},
                     "(HL)": {"d8": {"!": 0x36}},
-                    "(C)" : {"A": {"!": 0xe2}},
+                    "(C)": {"A": {"!": 0xe2}},
                     "(a16)": {"SP": {"!": 0x08},
                               "A": {"!": 0xea}},
                     "A": {"(C)": {"!": 0xf2},
@@ -115,6 +115,8 @@ class InstructionSet():
             # "LD"   -- Remainder in _build_LD_REG_instructions
             "LDH": {"({a8})": {"A": {"!": 0xe0}},
                     "A": {"(a8)": {"!": 0xf0}}},
+            # LDHL SP, r8 is the same as LD HL, SP+r8.
+            "LDHL": {"SP": {"r8": {"!": 0xf8}}},
             "NOP": {"!": 0x00},
             "OR": {"d8": {"!": 0xf6}},
             # "OR"   -- remainder in _build_ASXOC_REG_instructions

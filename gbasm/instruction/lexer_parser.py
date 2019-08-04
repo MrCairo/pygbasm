@@ -15,11 +15,10 @@ class LexerTokens:
     A data class that stores the instruction tokens and provides easy
     access to the token values.
     """
-
-    _tok: dict
-
     def __init__(self, tokens: dict) -> None:
+        self._top = tokens if tokens else {}
         self._tok = {} if "tok" not in tokens else tokens
+        self._extra = {}
 
     def tokens(self):
         """
@@ -47,6 +46,12 @@ class LexerTokens:
         """
         ins_def = None if "ins_def" not in self._tok else self._tok["ins_def"]
         return ins_def
+
+    def extra(self) -> dict:
+        return self._extra
+
+    def set_extra(self, key, value):
+        self._extra[key] = value
 
     def _exploded_val(self, key):
         tok = self.tokens()
@@ -190,6 +195,13 @@ class LexerResults:
         """
         return self._if_found("placeholder")
 
+    def extra(self) -> dict:
+        """
+        Returns a list of instruction/parsed specific data. The data are
+        completely optional and provides no indication if the instruction
+        is valid or not.
+        """
+
     def unresolved(self) -> str:
         """
         Returns any value that is/was considered unresolved when the
@@ -214,12 +226,10 @@ class LexerResults:
 
 class InstructionParser:
     """ Parses an individual instruction """
-    _instruction_in = ""
-    _tokens = None
-    _final = {}
-    state = None
-
     def __init__(self, node: dict):
+        self._instruction_in = ""
+        self._tokens = None
+        self._final = {}
         self.state = None
         if is_node_valid(node):
             self._final = self._parse(node[TOK])
@@ -290,7 +300,7 @@ class InstructionParser:
                 tmp = arg.strip("()")
                 if tmp[0] in valid_label_first_char():
                     if name_valid_label_chars(tmp):
-                        self.state.operands['unresolved'] = tmp
+                        self.state.unresolved = tmp
         if "!" in self.state.roamer:
             # This means that the instruction was found and processed
             dec_val = self.state.roamer["!"]
@@ -369,18 +379,31 @@ class InstructionParser:
         _arg = self.state.arg
         arg_parens = False
         plus = None
+        is_sp = False
+        bits = "8"
         if self.state.is_arg_inside_parens():
             _arg = _arg.strip("()")
             arg_parens = True
         _split = InstructionParser.plus_split(_arg)
         if _split and len(_split) == 2:
+            # This is a special case and this is a quick way of handling it.
+            # The instruction, LD HL, SP+r8, has an special case
+            # operand. It also has an alternate instruction which is
+            # LDHL SP,r8 which matches the most common patterns. However,
+            # both need to be supported.
             if _split[0] == "SP":
+                is_sp = True
                 plus = _arg
                 _arg = _split[1]
         dec_val = EC().value_from_expression(_arg)
         if dec_val:  # Is this an immediate value?
+            bits = "8" if dec_val < 256 else "16"
+            if len(_arg) > 3 and bits == "8":
+                bits = "16"
             placeholder = self._ph_in_list(self.state.roamer.keys(),
-                                           parens=arg_parens)
+                                           parens=arg_parens,
+                                           bits=bits,
+                                           sp=is_sp)
             if placeholder:
                 bits = 8 if placeholder.find("8") != -1 else 16
                 opbytes = self._int_to_z80binary(dec_val, bits=bits)
@@ -402,7 +425,7 @@ class InstructionParser:
             self.state.set_operand_to_val(self.state.arg, err)
         return False
 
-    def _ph_in_list(self, ph_list: list, bits="8", parens=False) -> str:
+    def _ph_in_list(self, ph_list: list, bits="8", parens=False, sp=False) -> str:
         """
         For all of the values in the instruction, if any are a placeholder
         then this function will validate and return the placeholder that
@@ -410,7 +433,8 @@ class InstructionParser:
         """
         ph_key = None
         found = False
-        regs = {"8": ["r8", "a8", "d8", "SP+r8"], "16": ["a16", "d16"]}
+        regs8 = ["r8", "a8", "d8", "SP+r8"] if sp else ["r8", "a8", "d8"]
+        regs = {"8": regs8, "16": ["a16", "d16"]}
         eight = "8" if not parens else "8)"
         sixteen = "16" if not parens else "16)"
         if bits == "8":
@@ -418,7 +442,7 @@ class InstructionParser:
                 if k.find(eight) != -1:  # Maybe an 8-bit placeholder key
                     ph_key = k
                     break
-        #if we are 16 bits or an 8-bit value isn't found...
+        # if we are 16 bits or an 8-bit value isn't found...
         if not ph_key:
             for k in ph_list:
                 if k.find(sixteen) != -1:
@@ -454,6 +478,7 @@ class _State:
     def __init__(self, roamer, ops, arg) -> None:
         self.roamer = roamer
         self.operands = ops
+        self.unresolved = ""
         self._arg = arg
         self.op_key = "operand0"
         self._op_idx = 0
@@ -522,15 +547,21 @@ class _State:
             final = InstructionSet().instruction_detail_from_byte(byte)
         if final is not None:
             final["bytes"] = bytes(self.ins_bytes)
+            if self.unresolved:
+                final["unresolved"] = self.unresolved
             for item in ["placeholder", "operand1", "operand2",
-                         "operand1_error", "operand2_error"]:
+                         "operand1_error", "operand2_error", "unresolved"]:
                 if item in self.operands:
                     final[item] = self.operands[item]
         return final
 
     # --------========[ End of Insternal _State class ]========-------- #
 
+
 if __name__ == "__main__":
+    ip = InstructionParser.from_text("LD (GGG), SP")
+    print(ip)
+
     ip = InstructionParser.from_text("LD HL, SP+$45")
     print(ip)
 
@@ -538,9 +569,6 @@ if __name__ == "__main__":
     print(ip)
 
     ip = InstructionParser.from_text("LD A, $45")
-    print(ip)
-
-    ip = InstructionParser.from_text("LD (GGG), SP")
     print(ip)
 
     ip = InstructionParser.from_text("ADD A, $10")

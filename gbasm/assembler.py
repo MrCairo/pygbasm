@@ -33,14 +33,17 @@ class Action(IntEnum):
     CODE = auto()
     IGNORE = auto()
 
+
 class ParserState(IntEnum):
     IDLE = auto()
     RESOLVE = auto()
     ASSEMBLE = auto()
 
+
 EC = ExpressionConversion
 IS = InstructionSet
 IP = InstructionPointer
+
 
 """
 Need to create some global/local storage (like global.py is now). There
@@ -52,6 +55,7 @@ processed via the Parser class. If the Parser detects an import, that file
 is then opened and another (nested) Parser class is instantiated again, and
 so on.
 """
+
 
 class Assembler:
     """The main entrypoint (class) to instantiate in order to compile any
@@ -147,7 +151,7 @@ class Parser:
                 continue
             desc = f"\n\nType: {type_name}\n"
             desc += "Code:"
-            desc += pp.pformat(code)
+            desc += pp.pformat(code.__str__())
             print(desc)
 
     def _process_node(self, node: dict) -> [CodeNode]:
@@ -200,7 +204,9 @@ class Parser:
             # err = Error(ErrorCode.INVALID_DECLARATION,
             #             source_line=self._line_no)
             return None
-        if tok_list[0][DIR] == LBL:
+        # Record a label unless it's an equate. The equate object (which is
+        # similar to a label) handles the storage of both.
+        if tok_list[0][DIR] == LBL and tok_list[1][DIR] != EQU:
             clean = tok_list[0][TOK].strip("()")
             existing = Labels()[clean]
             if not existing:
@@ -238,6 +244,9 @@ class Parser:
         ins = None
         if node is None:
             return None
+        tok = node[TOK]
+        if "BIGVAL" in tok:
+            print(tok)
         ins = Instruction(node)
         if ins.parse_result().is_valid():
             IP().move_relative(len(ins.machine_code()))
@@ -250,6 +259,7 @@ class Parser:
             ins2 = Resolver().resolve_instruction(ins, IP().location)
             if ins2 and ins2.is_valid():
                 IP().move_relative(len(ins2.machine_code()))
+                return CodeNode(INST, ins2)
         if ins and ins.is_valid():
             if address is not None:
                 ins.address = address
@@ -361,11 +371,14 @@ READ_INPUT:: DS 1
 START_PLAY:: DS 1
 
 IMAGES    EQU $10
-BIGVAL    EQU $C020
+BIGVAL    EQU 65500
 
 SECTION "game", ROMX
 
-.update_game:   ld HL, BIGVAL
+.update_game:
+    ld HL, BIGVAL   ; should be 0x21 dc ff
+    ld HL, SP+$55   ; should be 0xf8 55
+    ldhl sp, $6a    ; should be 0xf8 6a
     ld A, (HL)
     jr nz, .update_game
     jr .continue_update_1

@@ -4,20 +4,21 @@ Manages EQU tokens
 import string
 from gbasm.conversions import ExpressionConversion
 from gbasm.label import Label
-from gbasm.basic_lexer import BasicLexer, is_node_valid
-from gbasm.constants import DIR, TOK, EQU, LBL, MULT
+from gbasm.basic_lexer import BasicLexer
+from gbasm.constants import DIR, TOK, LBL
 
 EC = ExpressionConversion
 
 ###############################################################################
+
+
 class Equate:
     """
     Represents an EQU statement
     """
-    _tok: dict = {}
-    _label: Label = None
 
     def __init__(self, tokens: dict):
+        self._label: Label = None
         self._tok = tokens
 
     def __str__(self):
@@ -60,8 +61,9 @@ class Equate:
 
     # --------========[ End of class ]========-------- #
 
+
 class _EquateParser:
-    _tok: dict = {}
+
     def __init__(self, tokens: dict):
         """
         Parses the tokenized Equate statement. The dictionary consists of a
@@ -104,6 +106,7 @@ class _EquateParser:
         if val:
             return Label(label_name, val, force_const=True)
         return None
+
 
 if __name__ == "__main__":
     e = Equate.from_string("COUNT_LABEL EQU $FFD2")
