@@ -24,6 +24,43 @@ Many of the python files have a __main__ that runs a simple smoke-test of
 the object(s) in the file. For example, the instruction/instruction.py file
 has several allocate/print statements, some of them negative.
 
+# Simple Example
+This is nonsensical code but provides an example of how the parser/assembler is coming along:
+
+```
+SECTION "CoolStuff",WRAM0
+CLOUDS_X: DB $FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00
+BUILDINGS_X: DS 1
+FLOOR_X: DS 1
+PARALLAX_DELAY_TIMER: DS 1
+FADE_IN_ACTIVE:: DS 1
+FADE_STEP: DS 1
+ALLOW_PARALLAX:: DS 1
+READ_INPUT:: DS 1
+START_PLAY:: DS 1
+
+IMAGES    EQU $10
+BIGVAL    EQU 65500
+
+SECTION "game", ROMX
+
+.update_game:
+    ld HL, BIGVAL   ; should be 0x21 dc ff
+    ld HL, SP+$55   ; should be 0xf8 55
+    ldhl sp, $6a    ; should be 0xf8 6a
+    ld A, (HL)
+    jr nz, .update_game
+    jr .continue_update_1
+    ld A, (HL)
+    XOR D
+    CP H
+    CP L
+.continue_update_1:
+    CP A
+```
+
+The code located in the gbz80asm.py file will generate logs as to what the assembler is doing and what binary values are being generated. Again, this is strictly alpha software and doesn't generate a binary file (yet). It's almost to that point though :)
+
 Cheers,
 
 - mitch
