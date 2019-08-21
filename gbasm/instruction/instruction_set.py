@@ -1,12 +1,11 @@
 """
 Class(es) that implements a Z80/LR35902 instruction and Instruction Set
 """
-
-from singleton_decorator import singleton
-from gbasm.instruction.registers import Registers
 import json
 import os
 
+from singleton_decorator import singleton
+from gbasm.instruction.registers import Registers
 
 @singleton
 class InstructionSet():

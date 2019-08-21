@@ -2,11 +2,10 @@
 Z80 Assembler
 """
 from gbasm.reader import Reader, BufferReader
-from gbasm.instruction import InstructionSet
-from gbasm.label import is_valid_label
-from gbasm.label import valid_label_first_char
-from gbasm.constants import DIR, TOK, MULT, STOR, INST, LBL
-from gbasm.constants import DIRECTIVES, STORAGE_DIR
+from gbasm.instruction.instruction_set import InstructionSet
+from gbasm.label import is_valid_label, valid_label_first_char
+from gbasm.constants import DIR, TOK, MULT, STOR, INST, LBL, \
+                            DIRECTIVES, STORAGE_DIR
 IS = InstructionSet
 
 

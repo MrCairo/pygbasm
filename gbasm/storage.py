@@ -46,7 +46,11 @@ class Storage:
         return cls({})
 
     def __str__(self):
-        return self._parser.__str__()
+        out = self._parser.__str__()
+        if self._base_address is not None:
+            out += f"Start Addr: {self._base_address:04x}".upper()
+            out += "\n"
+        return out
 
     def __repr__(self):
         return self._parser.__repr__()

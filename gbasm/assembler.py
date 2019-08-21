@@ -244,9 +244,6 @@ class Parser:
         ins = None
         if node is None:
             return None
-        tok = node[TOK]
-        if "BIGVAL" in tok:
-            print(tok)
         ins = Instruction(node)
         if ins.parse_result().is_valid():
             IP().move_relative(len(ins.machine_code()))

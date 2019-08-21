@@ -9,5 +9,8 @@ from gbasm.instruction.instruction_pointer import InstructionPointer
 from gbasm.instruction.lexer_parser import LexerResults, LexerTokens
 from gbasm.instruction.lexer_parser import InstructionParser
 
-__all__ = ['Instruction', 'InstructionPointer', 'InstructionSet',
-           'InstructionParser', 'Registers', 'LexerResults', 'LexerTokens']
+__all__ = [
+    "registers", "instruction_set", "instruction", "instruction_pointer",
+    "lexer_parser"
+]
+
