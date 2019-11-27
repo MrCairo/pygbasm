@@ -5,6 +5,7 @@ from enum import IntEnum, auto
 from collections import namedtuple
 import tempfile
 import pprint
+import gbasm_dev; gbasm_dev.set_gbasm_path()
 
 from gbasm.reader import BufferReader, FileReader, Reader
 from gbasm.section import Section
@@ -17,7 +18,6 @@ from gbasm.label import Label, Labels
 from gbasm.conversions import ExpressionConversion
 from gbasm.basic_lexer import BasicLexer, is_multiple_node, is_node_valid
 from gbasm.constants import NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC
-
 
 class CodeNode(namedtuple('CodeNode', 'type_name, code_obj')):
     pass
@@ -86,6 +86,7 @@ class Assembler:
         print("-------------- Results -------------")
         self._parser.print_code()
 
+    # --==[ End of class ]==-- #
     # --------========[ End of class ]========-------- #
 
 
@@ -347,6 +348,8 @@ class Parser:
 
         return None
 
+    # --- End of class
+    
 
 class Macro(object):
     """

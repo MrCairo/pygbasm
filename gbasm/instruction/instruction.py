@@ -1,9 +1,13 @@
 """
 Class(es) that implements a Z80/LR35902 instruction and Instruction Set
 """
+from gbasm_dev import set_gbasm_path; set_gbasm_path()
+
 from gbasm.instruction.lexer_parser import LexerResults, InstructionParser
 from gbasm.basic_lexer import BasicLexer
 
+#class InstructionInfo:
+#    def __init__(self)
 
 class Instruction:
     """ Encapsulates an individual Z80 instruction """
@@ -14,6 +18,7 @@ class Instruction:
         self._node = node
         self._lex_results: LexerResults = ip.result()
         self._placeholder_string = None
+        self.labels = []
 
     @classmethod
     def from_text(cls, text: str):
@@ -51,6 +56,11 @@ class Instruction:
                 desc += "\n"
             if self._lex_results.unresolved():
                 desc += "Unresolved = " + self._lex_results.unresolved()
+                desc += "\n"
+        if len(self.labels):
+            desc += "Labels:\n"
+            for label in self.labels:
+                desc += label.__repr__()
                 desc += "\n"
         return desc
 
@@ -97,7 +107,7 @@ class Instruction:
         return self._lex_results
 
     def is_valid(self) -> bool:
-        """
+        """    
         Returns true if the Instruc object is valid. Validity is
         determined on whether the instruction was parsed successfully.
         """

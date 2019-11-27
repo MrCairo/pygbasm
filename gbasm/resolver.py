@@ -102,6 +102,7 @@ def op_jp(lex: LexerResults) -> Instruction:
 def op_jr(lex: LexerResults) -> Instruction:
     """ Process the JR instruction """
     args = []
+    clean_label = None
     # Must be at least one operand.
     if lex.operand1 is None:
         return None
@@ -117,6 +118,7 @@ def op_jr(lex: LexerResults) -> Instruction:
         label = maybe_label(clean1)
         if label is None:
             return None
+        clean_label = label
         print(f"RESOLVE JR compute relative IP = {hex(IP().location)}")
         print(f"from = {hex(label.value())}")
         rel = compute_relative(IP().location, label.value())
@@ -151,11 +153,16 @@ def op_jr(lex: LexerResults) -> Instruction:
             else:
                 return None
     if len(args) == 2:
-        return Instruction.from_text(f"JR {args[0]}, {args[1]}")
-    return Instruction.from_text(f"JR {args[0]}")
+        ins = Instruction.from_text(f"JR {args[0]}, {args[1]}")
+        ins.labels = [clean_label]
+        return ins
+    ins = Instruction.from_text(f"JR {args[0]}")
+    ins.labels = [clean_label]
+    return ins
 
 def op_ld(lex: LexerResults) -> Instruction:
     args: list = []
+    clean_labels = []
     if lex.operand1() is None or lex.operand2() is None:
         return None
     paren1 = paren2 = False
@@ -167,6 +174,7 @@ def op_ld(lex: LexerResults) -> Instruction:
         if label is None:
             if Registers().is_valid_register(clean1) is False:
                 return None
+        clean_labels.append(label)
         val = EC().expression_from_value(label.value(), "$")
         args.append(format_with_parens(val, paren1))
     else:
@@ -191,11 +199,15 @@ def op_ld(lex: LexerResults) -> Instruction:
         else:
             val = EC().expression_from_value(label.value(), "$")
             args.append(format_with_parens(val, paren2))
+            clean_labels.append(label)
     else:
         args.append(lex.operand2())
 
     text = f"LD {args[0]}, {args[1]}"
-    return Instruction.from_text(text)
+    ins = Instruction.from_text(text)
+    ins.labels = clean_labels
+    return ins
+    
 
 def op_ldh(lex: LexerResults) -> Instruction:
     return None

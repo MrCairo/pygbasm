@@ -1,11 +1,6 @@
 """
 Z80 Assembler
 """
-from enum import IntEnum, auto
-from collections import namedtuple
-import tempfile
-import pprint
-import sys, os
 from gbasm import Assembler
 
 asm = """
@@ -40,6 +35,14 @@ SECTION "game", ROMX
     CP A
 """
 
+
+"""
+09/18/2019:
+    Need to update the Instruction class (maybe) so that if any part of it is
+    resolved from a label, that the label or constant is included in the object
+    for reference. This will be necessary (possibly) during linking.
+"""
+print("Hello")
 assembler = Assembler()
 assembler.load_from_buffer(asm)
 assembler.parse()
