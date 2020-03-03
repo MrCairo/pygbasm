@@ -5,7 +5,14 @@ from enum import IntEnum, auto
 from collections import namedtuple
 import tempfile
 import pprint
-import gbasm_dev; gbasm_dev.set_gbasm_path()
+
+import imp
+try:
+    imp.find_module('gbasm_dev')
+    from gbasm_dev import set_gbasm_path
+    set_gbasm_path()
+except ImportError:
+    pass
 
 from gbasm.reader import BufferReader, FileReader, Reader
 from gbasm.section import Section
