@@ -3,6 +3,10 @@ This class (and accompanying functions) try to resolve labels assigned to
 variable type values. Instructions that cannot be resolved are returned in
 original state.
 """
+import imp
+try: imp.find_module('gbasm_dev'); from gbasm_dev import set_gbasm_path; set_gbasm_path()
+except ImportError: pass
+
 from singleton_decorator import singleton
 from gbasm.label import Labels, Label
 from gbasm.conversions import ExpressionConversion
@@ -116,6 +120,7 @@ def op_jr(lex: LexerResults) -> Instruction:
         paren2 = len(clean2) < len(lex.operand2())
     if lex.operand1_error():
         label = maybe_label(clean1)
+        print(f">>>>> Maybe Label = {clean1}")
         if label is None:
             return None
         clean_label = label
@@ -135,9 +140,11 @@ def op_jr(lex: LexerResults) -> Instruction:
                 args.append(val)
             else:
                 return None
+        print(f">>>>> JR NZ Args = {args}")
 
     if lex.operand2_error():
         label = maybe_label(clean2)
+        print(f">>>>> Maybe Label2 = {clean2}")
         if label is None:
             return None
         rel = compute_relative(IP().location, label.value())

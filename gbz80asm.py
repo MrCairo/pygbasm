@@ -42,7 +42,7 @@ SECTION "game", ROMX
     resolved from a label, that the label or constant is included in the object
     for reference. This will be necessary (possibly) during linking.
 """
-print("Hello")
+print(">>>>>>>>>> Hello")
 assembler = Assembler()
 assembler.load_from_buffer(asm)
 assembler.parse()
