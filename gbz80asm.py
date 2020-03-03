@@ -1,6 +1,14 @@
 """
 Z80 Assembler
 """
+import imp
+try:
+    imp.find_module('gbasm_dev')
+    from gbasm_dev import set_gbasm_path
+    set_gbasm_path()
+except ImportError:
+    pass
+
 from gbasm import Assembler
 
 asm = """

@@ -1,5 +1,13 @@
 # Game Boy Assembler
 
+import imp
+try:
+    imp.find_module('gbasm_dev')
+    from gbasm_dev import set_gbasm_path
+    set_gbasm_path()
+except ImportError:
+    pass
+
 from gbasm.constants import Constants
 from gbasm.reader import Reader, BufferReader, FileReader
 from gbasm.exception import Error, ErrorCode
@@ -18,4 +26,3 @@ __all__ = [
     "conversions", "label", "resolver", "section", "storage",
     "assembler"
 ]
-
