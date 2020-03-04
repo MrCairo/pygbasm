@@ -26,7 +26,7 @@ from gbasm.conversions import ExpressionConversion
 from gbasm.basic_lexer import BasicLexer, is_multiple_node, is_node_valid
 from gbasm.constants import NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC
 
-class CodeNode(namedtuple('CodeNode', 'type_name, code_obj')):
+class CodeNode(namedtuple('CodeNode', 'type_name, code_obj, offset')):
     pass
 
 
@@ -158,6 +158,7 @@ class Parser:
                 pp.pprint(code)
                 continue
             desc = f"\n\nType: {type_name}\n"
+            desc += f"Offset: {code_node.offset}\n"
             desc += "Code:"
             desc += pp.pformat(code.__str__())
             print(desc)
@@ -176,9 +177,11 @@ class Parser:
                             supplimental=msg,
                             source_line=self._line_no)
                 node["error"] = err
-                nodes.append(CodeNode(NODE, node))
+                nodes.append(CodeNode(NODE, node, 0))
             else:
-                nodes.append(CodeNode(SEC, sec))
+                # address = sec.address_range()
+                # nodes.append(CodeNode(SEC, sec, address.start))
+                nodes.append(CodeNode(SEC, sec, 0))
             return nodes
         if is_multiple_node(node):
             # The MULTIPLE case is when a LABEL is on the same line as some
@@ -188,7 +191,7 @@ class Parser:
             # INSTRUCTION.
             multi = self._process_multi_node(node)
             if not multi:
-                nodes.append(CodeNode(NODE, node))
+                nodes.append(CodeNode(NODE, node, IP().offset_from_base()))
             else:
                 nodes.extend(multi)
         # Just check for a label on it's own line.
@@ -202,7 +205,7 @@ class Parser:
             if ins:
                 nodes.append(ins)
             else:
-                nodes.append(CodeNode(NODE, node))
+                nodes.append(CodeNode(NODE, node, IP().offset_from_base()))
         return nodes
 
     def _process_multi_node(self, node: dict) -> [CodeNode]:
@@ -221,7 +224,7 @@ class Parser:
                 label = self._process_label(tok_list[0])
                 Labels().add(label.code_obj)
             else:
-                label = CodeNode(LBL, existing)
+                label = CodeNode(LBL, existing, IP().offset_from_base())
             nodes.append(label)
         # Equate has it's own required label. It's not a standard label
         # in that it can't start with a '.' or end with a ':'
@@ -237,25 +240,26 @@ class Parser:
         elif tok_list[1][DIR] == STOR:
             storage = self._process_storage(tok_list[1])
             if storage:
+
                 IP().move_location_relative(len(storage.code_obj))
                 nodes.append(storage)
                 return nodes
         else:
-            nodes.append(CodeNode(NODE, node))
+            nodes.append(CodeNode(NODE, node, IP().offset_from_base()))
         return nodes
 
     def _process_instruction(self, node: dict) -> CodeNode:
         """
         Processes the instruction defined in the tokenized node.
         """
-        address = None
         ins = None
         if node is None:
             return None
         ins = Instruction(node)
         if ins.parse_result().is_valid():
+            offset = IP().offset_from_base()
             IP().move_relative(len(ins.machine_code()))
-            return CodeNode(INST, ins)
+            return CodeNode(INST, ins, offset)
         # Instruction is not valid. This could mean either it really is
         # invalid (typo, wrong argument, etc) or that it has a label. To
         # get started, just check to make sure the mnemonic is at least
@@ -263,14 +267,14 @@ class Parser:
         if ins.parse_result().mnemonic_error() is None:
             ins2 = Resolver().resolve_instruction(ins, IP().location)
             if ins2 and ins2.is_valid():
+                offset = IP().offset_from_base()
                 IP().move_relative(len(ins2.machine_code()))
-                return CodeNode(INST, ins2)
+                return CodeNode(INST, ins2, offset)
         if ins and ins.is_valid():
-            if address is not None:
-                ins.address = address
+            offset = IP().offset_from_base()
             IP().move_relative(len(ins.machine_code()))
-            return CodeNode(INST, ins)
-        return CodeNode(NODE, node)  # Error, return the errant node
+            return CodeNode(INST, ins, offset)
+        return CodeNode(NODE, node, 0)  # Error, return the errant node
 
     def _process_label(self, node: dict, value=None) -> CodeNode:
         if not node:
@@ -285,7 +289,7 @@ class Parser:
         if not value:
             loc = IP().location
         label = Label(clean, loc)
-        return CodeNode(LBL, label)
+        return CodeNode(LBL, label, IP().offset_from_base())
 
     def _process_equate(self, tokens: list) -> CodeNode:
         """Process an EQU statement. """
@@ -302,21 +306,22 @@ class Parser:
             result.parse()
             lbl = Label(result.name(), result.value(), force_const=True)
             Labels().add(lbl)
-            return CodeNode(EQU, lbl)
+            return CodeNode(EQU, lbl, IP().offset_from_base())
         err = Error(ErrorCode.INVALID_LABEL_NAME,
                     source_file=self._reader.filename,
                     source_line=int(self._reader.line))
         tokens["error"] = err
         # _errors.append(err)
-        return CodeNode(NODE, tokens)
+        return CodeNode(NODE, tokens, 0)
 
     def _process_storage(self, node: dict) -> CodeNode:
         if not node:
             return None
+        offset = IP().offset_from_base()
         sto = Storage(node)
         # print(f"Processing Storage type {sto.storage_type()}")
         # print(f"Storage len = {len(sto)}")
-        return CodeNode(STOR, sto)
+        return CodeNode(STOR, sto, offset)
 
     def _find_section(self, line: str) -> Section:
         try:
@@ -355,7 +360,7 @@ class Parser:
 
         return None
 
-    # --- End of class   
+    # --- End of class
 
 class Macro(object):
     """

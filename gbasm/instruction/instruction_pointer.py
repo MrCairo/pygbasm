@@ -89,6 +89,9 @@ class InstructionPointer():
             self._section_base = address
             self._pointer = address
 
+    def offset_from_base(self) -> int:
+        return self.location - self.base_address
+
     def move_relative(self, relative):
         """
         relative is a single byte. 0 - 127 is positive branch
