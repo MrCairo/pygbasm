@@ -30,10 +30,10 @@ SECTION "game", ROMX
 
 .update_game:
     ld HL, BIGVAL   ; should be 0x21 dc ff
+    jr nz, .update_game
     ld HL, SP+$55   ; should be 0xf8 55
     ldhl sp, $6a    ; should be 0xf8 6a
     ld A, (HL)
-    jr nz, .update_game
     jr .continue_update_1
     ld A, (HL)
     XOR D
