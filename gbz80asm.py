@@ -2,6 +2,9 @@
 Z80 Assembler
 """
 import imp
+import os
+os.environ['PYGBASM_HOME'] = os.path.dirname(os.path.realpath(__file__))
+
 try:
     imp.find_module('gbasm_dev')
     from gbasm_dev import set_gbasm_path
@@ -29,12 +32,12 @@ BIGVAL    EQU 65500
 SECTION "game", ROMX
 
 .update_game:
-    jr .continue_update_1
+    ld A, (HL)
+    jr nz, .update_game
     ld HL, BIGVAL   ; should be 0x21 dc ff
-    ; jr nz, .update_game
     ld HL, SP+$55   ; should be 0xf8 55
     ldhl sp, $6a    ; should be 0xf8 6a
-    ld A, (HL)
+    jr .continue_update_1
     ld A, (HL)
     XOR D
     CP H
@@ -42,7 +45,6 @@ SECTION "game", ROMX
 .continue_update_1:
     CP A
 """
-
 
 """
 09/18/2019:
