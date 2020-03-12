@@ -136,14 +136,10 @@ class Parser:
         for (_, code_node) in enumerate(self._code):
             type_name = code_node.type_name
             code = code_node.code_obj
-            if type_name == NODE:
-                if not is_node_valid(code):
-                    continue
-                new_nodes = self._process_node(code)
-                if new_nodes:
-                    new_code.extend(new_nodes)
-            else:
-                new_code.append(code_node)
+            if not code:
+                continue
+            new_node = self._apply_code(code_node)
+            new_code.append(new_node)
         self._code.clear()
         self._code = new_code
 
@@ -264,17 +260,16 @@ class Parser:
         # invalid (typo, wrong argument, etc) or that it has a label. To
         # get started, just check to make sure the mnemonic is at least
         # valid.
+        offset = IP().offset_from_base()
         if ins.parse_result().mnemonic_error() is None:
             ins2 = Resolver().resolve_instruction(ins, IP().location)
             if ins2 and ins2.is_valid():
-                offset = IP().offset_from_base()
                 IP().move_relative(len(ins2.machine_code()))
                 return CodeNode(INST, ins2, offset)
         if ins and ins.is_valid():
-            offset = IP().offset_from_base()
             IP().move_relative(len(ins.machine_code()))
             return CodeNode(INST, ins, offset)
-        return CodeNode(NODE, node, 0)  # Error, return the errant node
+        return CodeNode(NODE, node, offset)  # Error, return the errant node
 
     def _process_label(self, node: dict, value=None) -> CodeNode:
         if not node:
@@ -359,6 +354,21 @@ class Parser:
             return secn
 
         return None
+
+    def _apply_code(self, code: CodeNode) -> CodeNode:
+        if code.type_name == SEC:
+            _ = self._apply_section(code.code_obj)
+        return code
+
+    def _apply_section(self, section: Section) -> bool:
+        if not section.is_valid():
+            return False
+
+        num_addr, _ = section.address_range()
+        str_addr = EC().expression_from_value(num_addr,
+                                              "$$")  # 16-bit hex value
+        IP().base_address = str_addr
+        return True
 
     # --- End of class
 
