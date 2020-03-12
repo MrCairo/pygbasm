@@ -27,7 +27,7 @@ class BasicLexer:
         while self._reader.is_eof() is False:
             line = self._reader.read_line()
             if line:
-                line = line.upper().split(";")[0]  # drop comments
+                line = line.upper().split(";")[0].strip()  # drop comments
                 if not line:
                     continue
                 self._line_no += 1
