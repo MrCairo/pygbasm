@@ -3,6 +3,15 @@ This class (and accompanying functions) try to resolve labels assigned to
 variable type values. Instructions that cannot be resolved are returned in
 original state.
 """
+import imp
+try:
+    imp.find_module('gbasm_dev')
+    from gbasm_dev import set_gbasm_path
+    set_gbasm_path()
+except ImportError:
+    pass
+
+import operator
 from singleton_decorator import singleton
 from gbasm.label import Labels, Label
 from gbasm.conversions import ExpressionConversion
@@ -140,7 +149,20 @@ def op_jr(lex: LexerResults) -> Instruction:
         label = maybe_label(clean2)
         if label is None:
             return None
+        clean_label = label
         rel = compute_relative(IP().location, label.value())
+        #
+        # JR NZ, 0x?? is two bytes in size. For negative values (0x80+)
+        # reduce the relative by two bytes to account for going back
+        # INCLUDING the instruction size. For anything less than 80,
+        # we add two to include the instruction size. This will give a
+        # range of -126 through +129.
+        #
+        if rel > 0x80:
+            rel -= 2
+        else:
+            rel += 2
+
         val = EC().expression_from_value(rel, "$")
         args.append(format_with_parens(val, paren2))
         lex.clear_operand2_error()
@@ -207,7 +229,7 @@ def op_ld(lex: LexerResults) -> Instruction:
     ins = Instruction.from_text(text)
     ins.labels = clean_labels
     return ins
-    
+
 
 def op_ldh(lex: LexerResults) -> Instruction:
     return None
@@ -216,17 +238,28 @@ def compute_relative(curr, base) -> int:
     """
     Compute a relative 8-bit value
     """
-    rel = 0
     if curr > base:
         rel = base - curr
     else:
         rel = curr - base
-    if rel < 0:
-        rel = 255 + rel
-    return rel
 
-def twos_comp(val, bits):
+    if rel < -128 or rel > 127:
+        return None
+
+    if rel < 0:
+        return twos_comp(rel)
+    else:
+        return rel
+
+def twos_comp(val, bits=8) -> int:
     """compute the 2's complement of int value val"""
-    if val & (1 << (bits - 1)) != 0:  # if sign bit is set e.g., 8bit: 128-255
-        val = val - (1 << bits)        # compute negative value
-    return val                         # return positive value as is
+    if val < 0:
+        ones = ones_comp(val, bits)
+        return abs(ones) + 1
+    return val
+
+def ones_comp(val, bits=8) -> int:
+    if val < 0:
+        mask = (2**bits) - 1
+        return operator.xor(abs(val), mask)
+    return val

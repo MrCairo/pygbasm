@@ -1,6 +1,17 @@
 """
 Z80 Assembler
 """
+import imp
+import os
+os.environ['PYGBASM_HOME'] = os.path.dirname(os.path.realpath(__file__))
+
+try:
+    imp.find_module('gbasm_dev')
+    from gbasm_dev import set_gbasm_path
+    set_gbasm_path()
+except ImportError:
+    pass
+
 from gbasm import Assembler
 
 asm = """
@@ -21,11 +32,11 @@ BIGVAL    EQU 65500
 SECTION "game", ROMX
 
 .update_game:
+    ld A, (HL)
+    jr nz, .update_game
     ld HL, BIGVAL   ; should be 0x21 dc ff
     ld HL, SP+$55   ; should be 0xf8 55
     ldhl sp, $6a    ; should be 0xf8 6a
-    ld A, (HL)
-    jr nz, .update_game
     jr .continue_update_1
     ld A, (HL)
     XOR D
@@ -35,14 +46,12 @@ SECTION "game", ROMX
     CP A
 """
 
-
 """
 09/18/2019:
     Need to update the Instruction class (maybe) so that if any part of it is
     resolved from a label, that the label or constant is included in the object
     for reference. This will be necessary (possibly) during linking.
 """
-print("Hello")
 assembler = Assembler()
 assembler.load_from_buffer(asm)
 assembler.parse()

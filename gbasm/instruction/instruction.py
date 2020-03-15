@@ -1,13 +1,17 @@
 """
 Class(es) that implements a Z80/LR35902 instruction and Instruction Set
 """
-from gbasm_dev import set_gbasm_path; set_gbasm_path()
+import imp
+try:
+    imp.find_module('gbasm_dev')
+    from gbasm_dev import set_gbasm_path
+    set_gbasm_path()
+except ImportError:
+    pass
 
 from gbasm.instruction.lexer_parser import LexerResults, InstructionParser
 from gbasm.basic_lexer import BasicLexer
 
-#class InstructionInfo:
-#    def __init__(self)
 
 class Instruction:
     """ Encapsulates an individual Z80 instruction """
