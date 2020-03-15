@@ -204,7 +204,7 @@ def test_instruction(mnemonic:str) -> str:
         for ins in ins_list:
             line = ins["code_line"]
             # print(line, end="")
-            code = Instruction.from_text(line)
+            code = Instruction.from_string(line)
             if code.is_valid():
                 _ins_processed_count += 1
                 desc = "  -- bin: "

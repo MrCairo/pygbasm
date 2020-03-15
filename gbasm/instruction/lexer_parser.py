@@ -235,12 +235,12 @@ class InstructionParser:
             self._final = self._parse(node[TOK])
 
     @classmethod
-    def from_text(cls, instruction: str):
+    def from_string(cls, instruction: str):
         """
         Constructs an InstructionParser object from an instruction string.
         """
         if instruction:
-            lex = BasicLexer.from_text(instruction)
+            lex = BasicLexer.from_string(instruction)
             if lex:
                 lex.tokenize()
                 return cls(lex.tokenized_list()[0])
@@ -559,17 +559,17 @@ class _State:
 
 
 if __name__ == "__main__":
-    ip = InstructionParser.from_text("LD (GGG), SP")
+    ip = InstructionParser.from_string("LD (GGG), SP")
     print(ip)
 
-    ip = InstructionParser.from_text("LD HL, SP+$45")
+    ip = InstructionParser.from_string("LD HL, SP+$45")
     print(ip)
 
-    ip = InstructionParser.from_text("LD SP, $ffd2")
+    ip = InstructionParser.from_string("LD SP, $ffd2")
     print(ip)
 
-    ip = InstructionParser.from_text("LD A, $45")
+    ip = InstructionParser.from_string("LD A, $45")
     print(ip)
 
-    ip = InstructionParser.from_text("ADD A, $10")
+    ip = InstructionParser.from_string("ADD A, $10")
     print(ip)

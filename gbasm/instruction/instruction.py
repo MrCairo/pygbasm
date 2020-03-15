@@ -21,18 +21,18 @@ class Instruction:
         self.labels = []
 
     @classmethod
-    def from_text(cls, text: str):
+    def from_string(cls, text: str):
         """ Builds and Instruction object from plain text. """
-        lex = BasicLexer.from_text(text)
+        lex = BasicLexer.from_string(text)
         if lex:
             lex.tokenize()
             return cls(lex.tokenized_list()[0])
         return cls({})
 
     def __str__(self):
-        desc = "   Mnemonic = " + self.mnemonic() + "\n"
+        desc = "    " + self.mnemonic()
         if self._lex_results.lexer_tokens().operands():
-            desc += "  Arguments = " + ',' . \
+            desc += " " + ',' . \
                 join(f"{x}" for x in
                      self._lex_results.lexer_tokens().operands())
             desc += "\n"
@@ -107,7 +107,7 @@ class Instruction:
         return self._lex_results
 
     def is_valid(self) -> bool:
-        """    
+        """
         Returns true if the Instruc object is valid. Validity is
         determined on whether the instruction was parsed successfully.
         """
@@ -120,54 +120,54 @@ class Instruction:
 ###############################################################################
 
 if __name__ == "__main__":
-    ins = Instruction.from_text("JR .RELATIVE")
+    ins = Instruction.from_string("JR .RELATIVE")
     print(ins)
 
-    ins = Instruction.from_text("LD HL, SP+$17")
+    ins = Instruction.from_string("LD HL, SP+$17")
     print(ins)
 
-    ins = Instruction.from_text("JP NZ, $0010")
+    ins = Instruction.from_string("JP NZ, $0010")
     print(ins)
 
-    ins = Instruction.from_text("LD a, ($ff00)")
+    ins = Instruction.from_string("LD a, ($ff00)")
     print(ins)
 
-    ins = Instruction.from_text("LD ($ff00), a")
+    ins = Instruction.from_string("LD ($ff00), a")
     print(ins)
 
-    ins = Instruction.from_text("RrCa")
+    ins = Instruction.from_string("RrCa")
     print(ins)
 
-    ins = Instruction.from_text("Add HL, SP")
+    ins = Instruction.from_string("Add HL, SP")
     print(ins)
 
-    ins = Instruction.from_text("LD A, (HL-)")
+    ins = Instruction.from_string("LD A, (HL-)")
     print(ins)
 
-    ins = Instruction.from_text("ADD SP, $25")
+    ins = Instruction.from_string("ADD SP, $25")
     print(ins)
 
-    ins = Instruction.from_text("LD b, c")
+    ins = Instruction.from_string("LD b, c")
     print(ins)
 
-    ins = Instruction.from_text("Nop")
+    ins = Instruction.from_string("Nop")
     print(ins)
 
-    ins = Instruction.from_text("JP (HL)")
+    ins = Instruction.from_string("JP (HL)")
     print(ins)
 
-    ins = Instruction.from_text("LD A, ($aabb)")
+    ins = Instruction.from_string("LD A, ($aabb)")
     print(ins)
 
-    ins = Instruction.from_text("SET 3, (HL)")
+    ins = Instruction.from_string("SET 3, (HL)")
     print(ins)
 
-    ins = Instruction.from_text("XOR $ff")
+    ins = Instruction.from_string("XOR $ff")
     print(ins)
 
     # Failures
-    ins = Instruction.from_text("JR .RELATIVE")
+    ins = Instruction.from_string("JR .RELATIVE")
     print(ins)
 
-    ins = Instruction.from_text("NOP A")
+    ins = Instruction.from_string("NOP A")
     print(ins)

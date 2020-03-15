@@ -10,7 +10,7 @@ Classes to handle labels.
 import string
 from singleton_decorator import singleton
 from gbasm.instruction.instruction_pointer import InstructionPointer
-from gbasm.constants import DIRECTIVES
+from gbasm.constants import DIRECTIVES, LBL
 
 ###############################################################################
 class Label():
@@ -96,7 +96,7 @@ class Label():
     @staticmethod
     def typename():
         """Returns the string name of this class's type."""
-        return "Equate"
+        return LBL
 
     def clean_name(self) -> str:
         """Returns the cleaned valid label stripped of the first and

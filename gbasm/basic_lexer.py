@@ -17,7 +17,7 @@ class BasicLexer:
         self._file_name = reader.filename
 
     @classmethod
-    def from_text(cls, text: str):
+    def from_string(cls, text: str):
         "Tokenize using a buffer of text."
         reader = BufferReader(text)
         return cls(reader)
@@ -54,7 +54,7 @@ def is_node_valid(node: dict) -> bool:
             result = True
     return result
 
-def is_multiple_node(node: dict) -> bool:
+def is_compound_node(node: dict) -> bool:
     """
     Returns True if the provided node is valid and contains other nodes
     with the 'tokens' key.

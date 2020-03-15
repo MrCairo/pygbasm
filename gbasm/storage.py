@@ -2,6 +2,14 @@
 ## DS, DB, DW, DL declarations
 #
 
+import imp
+try:
+    imp.find_module('gbasm_dev')
+    from gbasm_dev import set_gbasm_path
+    set_gbasm_path(debug=True)
+except ImportError:
+    pass
+
 from enum import Enum
 from gbasm.exception import DefineDataError
 from gbasm.conversions import ExpressionConversion as EC
@@ -34,22 +42,24 @@ class Storage:
         raise DefineDataError("The directive should be STORAGE but isn't")
 
     @classmethod
-    def from_text(cls, text: str):
+    def from_string(cls, text: str):
         """
         Creates a Storage object from a line of text containing the Storage
         directives
         """
         if text:
-            tok = BasicLexer.from_text(text)
+            tok = BasicLexer.from_string(text)
             tok.tokenize()
             return cls(tok.tokenized_list()[0])
         return cls({})
 
     def __str__(self):
+        out = self._parser.type_name()
         out = self._parser.__str__()
         if self._base_address is not None:
-            out += f"Start Addr: {self._base_address:04x}".upper()
-            out += "\n"
+            out += f": {self._base_address:04x}".upper()
+            out += f", length: {len(self._parser)}"
+        out += "\n"
         return out
 
     def __repr__(self):
@@ -80,7 +90,7 @@ class Storage:
     @staticmethod
     def typename():
         """Returns the string name of this class's type."""
-        return "Storage"
+        return STOR
 
     def to_bytes(self):
         return self._parser.data()
@@ -141,7 +151,7 @@ class StorageParser:
         for item in self._tok[1:-1]:
             args += item + ", "
         args += f"{self._tok[-1:][0]}"
-        desc = f"Storage.from_text(\"{args}\")"
+        desc = f"Storage.from_string(\"{args}\")"
         return desc
 
     def __len__(self):
@@ -273,7 +283,7 @@ class StorageParser:
 ###############################################################################
 
 if __name__ == "__main__":
-    x = Storage.from_text("DS 1")
+    x = Storage.from_string("DS 1")
     print(x)
-    s = Storage.from_text("DB $01, $02, $03, $04, $05, $06, $07, $07, $ff")
+    s = Storage.from_string("DB $01, $02, $03, $04, $05, $06, $07, $07, $ff")
     print(s)

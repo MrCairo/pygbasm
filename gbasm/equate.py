@@ -5,7 +5,7 @@ import string
 from gbasm.conversions import ExpressionConversion
 from gbasm.label import Label
 from gbasm.basic_lexer import BasicLexer
-from gbasm.constants import DIR, TOK, LBL
+from gbasm.constants import DIR, TOK, LBL, EQU
 
 EC = ExpressionConversion
 
@@ -23,8 +23,7 @@ class Equate:
 
     def __str__(self):
         if self._label:
-            desc = f"Label: {self._label.name()}\n"
-            desc += f"Value: {hex(self._label.value())}\n"
+            desc = f"{self._label.name()} = {hex(self._label.value())}\n"
             return desc
         return None
 
@@ -35,12 +34,12 @@ class Equate:
     @staticmethod
     def typename():
         """Returns the string name of this class's type."""
-        return "Equate"
+        return EQU
 
     @classmethod
     def from_string(cls, line: str):
         if line:
-            tok = BasicLexer.from_text(line)
+            tok = BasicLexer.from_string(line)
             if tok:
                 tok.tokenize()
                 return cls(tok.tokenized_list())

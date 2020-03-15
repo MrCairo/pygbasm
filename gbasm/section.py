@@ -9,7 +9,7 @@ import string
 from collections import namedtuple
 from gbasm.exception import SectionDeclarationError, SectionTypeError
 from gbasm.basic_lexer import BasicLexer
-from gbasm.constants import EQU, LBL, INST, STOR
+from gbasm.constants import EQU, LBL, INST, STOR, SEC
 
 ###############################################################################
 
@@ -78,8 +78,7 @@ class Section:
     def __str__(self):
         if self.is_valid:
             start, end = self.address_range()
-            desc = f"Section Name  '{self.name()}'\n" \
-                   f"Address Range '{start:04X} - {end:04X}'\n"
+            desc = f"Section: '{self.name()}, Range '{start:04X} - {end:04X}'\n"
             return desc
         return "None"
 
@@ -90,16 +89,16 @@ class Section:
     @staticmethod
     def typename():
         """Returns the string name of this class's type."""
-        return "Section"
+        return SEC
 
     @classmethod
     def from_string(cls, text: str):
         "Initialize Section from a string"
-        tok = BasicLexer.from_text(text)
+        tok = BasicLexer.from_string(text)
         tok.tokenize()
         tok_list = tok.tokenized_list()
         if len(tok_list):
-            if tok_list[0]['directive'] == "SECTION":
+            if tok_list[0]['directive'] == SEC:
                 return cls(tok_list[0]['tokens'])
         return cls({})
 
@@ -160,7 +159,7 @@ class SectionParser:
     def is_section(self):
         if len(self._tokens) < 3:
             return False
-        if self._tokens[0].upper() != "SECTION":
+        if self._tokens[0].upper() != SEC:
             return False
         return True
 

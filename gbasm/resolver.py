@@ -153,10 +153,10 @@ def op_jr(lex: LexerResults) -> Instruction:
             else:
                 return None
     if len(args) == 2:
-        ins = Instruction.from_text(f"JR {args[0]}, {args[1]}")
+        ins = Instruction.from_string(f"JR {args[0]}, {args[1]}")
         ins.labels = [clean_label]
         return ins
-    ins = Instruction.from_text(f"JR {args[0]}")
+    ins = Instruction.from_string(f"JR {args[0]}")
     ins.labels = [clean_label]
     return ins
 
@@ -204,7 +204,7 @@ def op_ld(lex: LexerResults) -> Instruction:
         args.append(lex.operand2())
 
     text = f"LD {args[0]}, {args[1]}"
-    ins = Instruction.from_text(text)
+    ins = Instruction.from_string(text)
     ins.labels = clean_labels
     return ins
     
