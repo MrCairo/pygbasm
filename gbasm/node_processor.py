@@ -25,15 +25,34 @@ from gbasm.resolver import Resolver
 from gbasm.label import Label, Labels
 from gbasm.conversions import ExpressionConversion
 from gbasm.basic_lexer import BasicLexer, is_compound_node, is_node_valid
-from gbasm.constants import NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC
+from gbasm.constants import NodeType, NODE_TYPES, NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC
 
 EC = ExpressionConversion
 IS = InstructionSet
 IP = InstructionPointer
 
+class CodeNode(object):
+    def __init__(self, type, code_obj, offset):
+        self.type = type
+        self.code_obj = code_obj
+        self.offset = offset
 
-class CodeNode(namedtuple('CodeNode', 'type_name, code_obj, offset')):
-    pass
+    @property
+    def type(self) -> NodeType:
+        return self._type
+
+    @type.setter
+    def type(self, new_value:NodeType):
+        if new_value is not None and new_value in NODE_TYPES:
+            self._type = new_value
+        else:
+            self._type = NodeType.NODE
+
+    @property
+    def type_name(self) -> str:
+        if self.type in NODE_TYPES:
+            return NODE_TYPES[self.type]
+        return None
 
 
 class NodeProcessor(object):
@@ -58,15 +77,15 @@ class NodeProcessor(object):
         result = Equate(tokens)
         if result:
             result.parse()
-            lbl = Label(result.name(), result.value(), force_const=True)
+            lbl = Label(result.name(), result.value(), constant=True)
             Labels().add(lbl)
-            return CodeNode(EQU, lbl, IP().offset_from_base())
+            return CodeNode(NodeType.EQU, lbl, IP().offset_from_base())
         err = Error(ErrorCode.INVALID_LABEL_NAME,
                     source_file=self._reader.filename,
                     source_line=int(self._reader.line))
         tokens["error"] = err
         # _errors.append(err)
-        return CodeNode(NODE, tokens, 0)
+        return CodeNode(NodeType.NODE, tokens, 0)
 
     def process_INSTRUCTION(self, node: dict) -> CodeNode:
         ins = None
@@ -76,7 +95,7 @@ class NodeProcessor(object):
         if ins.parse_result().is_valid():
             offset = IP().offset_from_base()
             IP().move_relative(len(ins.machine_code()))
-            return CodeNode(INST, ins, offset)
+            return CodeNode(NodeType.INST, ins, offset)
         # Instruction is not valid. This could mean either it really is
         # invalid (typo, wrong argument, etc) or that it has a label. To
         # get started, just check to make sure the mnemonic is at least
@@ -86,11 +105,11 @@ class NodeProcessor(object):
             ins2 = Resolver().resolve_instruction(ins, IP().location)
             if ins2 and ins2.is_valid():
                 IP().move_relative(len(ins2.machine_code()))
-                return CodeNode(INST, ins2, offset)
+                return CodeNode(NodeType.INST, ins2, offset)
         if ins and ins.is_valid():
             IP().move_relative(len(ins.machine_code()))
-            return CodeNode(INST, ins, offset)
-        return CodeNode(NODE, node, offset)  # Error, return the errant node
+            return CodeNode(NodeType.INST, ins, offset)
+        return CodeNode(NodeType.NODE, node, offset)  # Error, return the errant node
 
     def process_LABEL(self, node: dict, value=None) -> CodeNode:
         if not node:
@@ -105,7 +124,7 @@ class NodeProcessor(object):
         if not value:
             loc = IP().location
         label = Label(clean, loc)
-        return CodeNode(LBL, label, IP().offset_from_base())
+        return CodeNode(NodeType.LBL, label, IP().offset_from_base())
 
     def process_SECTION(self, tokens: dict) -> CodeNode:
         if not tokens or (tokens and tokens[0] != SEC):
@@ -134,7 +153,7 @@ class NodeProcessor(object):
         sto = Storage(node)
         # print(f"Processing Storage type {sto.storage_type()}")
         # print(f"Storage len = {len(sto)}")
-        return CodeNode(STOR, sto, offset)
+        return CodeNode(NodeType.STOR, sto, offset)
 
     def process_node(self, node: dict) -> [CodeNode]:
         nodes: [CodeNode] = []
@@ -149,7 +168,7 @@ class NodeProcessor(object):
             # INSTRUCTION.
             multi = self.process_compound_node(node)
             if not multi:
-                nodes.append(CodeNode(NODE, node, IP().offset_from_base()))
+                nodes.append(CodeNode(NodeType.NODE, node, IP().offset_from_base()))
             else:
                 nodes.extend(multi)
             return nodes
@@ -162,11 +181,11 @@ class NodeProcessor(object):
                             supplimental=msg,
                             source_line=self._line_no)
                 node["error"] = err
-                nodes.append(CodeNode(NODE, node, 0))
+                nodes.append(CodeNode(NodeType.NODE, node, 0))
             else:
                 # address = sec.address_range()
                 # nodes.append(CodeNode(SEC, sec, address.start))
-                nodes.append(CodeNode(SEC, sec, 0))
+                nodes.append(CodeNode(NodeType.SEC, sec, 0))
             return nodes
         # Just check for a label on it's own line.
         elif node[DIR] == LBL:
@@ -179,7 +198,7 @@ class NodeProcessor(object):
             if ins:
                 nodes.append(ins)
             else:
-                nodes.append(CodeNode(NODE, node, IP().offset_from_base()))
+                nodes.append(CodeNode(NodeType.NODE, node, IP().offset_from_base()))
         return nodes
 
     def process_compound_node(self, node: dict) -> [CodeNode]:
@@ -198,7 +217,7 @@ class NodeProcessor(object):
                 label = self.process_LABEL(tok_list[0])
                 Labels().add(label.code_obj)
             else:
-                label = CodeNode(LBL, existing, IP().offset_from_base())
+                label = CodeNode(NodeType.LBL, existing, IP().offset_from_base())
             nodes.append(label)
         # Equate has it's own required label. It's not a standard label
         # in that it can't start with a '.' or end with a ':'
@@ -219,7 +238,7 @@ class NodeProcessor(object):
                 nodes.append(storage)
                 return nodes
         else:
-            nodes.append(CodeNode(NODE, node, IP().offset_from_base()))
+            nodes.append(CodeNode(NodeType.NODE, node, IP().offset_from_base()))
         return nodes
 
     def _find_section(self, line: str) -> Section:

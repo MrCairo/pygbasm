@@ -6,7 +6,7 @@ import imp
 try:
     imp.find_module('gbasm_dev')
     from gbasm_dev import set_gbasm_path
-    set_gbasm_path(debug=True)
+    set_gbasm_path()
 except ImportError:
     pass
 
@@ -19,6 +19,8 @@ from gbasm.instruction.instruction_pointer import InstructionPointer
 
 ###############################################################################
 
+IP = InstructionPointer
+
 class StorageType(Enum):
     SPACE = 0
     BYTE = 1
@@ -30,14 +32,12 @@ class Storage:
     _roamer = 0
     _parser = None
     _tok: dict
-    _base_address: int
 
     def __init__(self, node: dict):
         self._parser = None
         if node[DIR] == STOR:
             self._tok = node[TOK]
             self._parser = StorageParser(node)
-            self._base_address = InstructionPointer().location
             return
         raise DefineDataError("The directive should be STORAGE but isn't")
 
@@ -55,10 +55,8 @@ class Storage:
 
     def __str__(self):
         out = self._parser.type_name()
-        out = self._parser.__str__()
-        if self._base_address is not None:
-            out += f": {self._base_address:04x}".upper()
-            out += f", length: {len(self._parser)}"
+        out += self._parser.__str__()
+        out += f"length: {len(self._parser)}"
         out += "\n"
         return out
 
@@ -162,7 +160,6 @@ class StorageParser:
     def __getitem__(self, position: int):
         return self._data[position]  # if position < len(self) else None
 
-
     def type(self):
         """
         Returns the string type of this storage object. This can be DS, DB,
@@ -216,7 +213,6 @@ class StorageParser:
             for i in range(0, size):
                 self._data.append(value)
             return size
-            print(f"S, V = {size},{value}")
         err = "Invalid DS parameter(s): Size must ba number < 1024 and "\
               "value must be number < 256."
         raise DefineDataError(err)
@@ -283,7 +279,13 @@ class StorageParser:
 ###############################################################################
 
 if __name__ == "__main__":
+    IP().base_address = "$4000"
     x = Storage.from_string("DS 1")
-    print(x)
-    s = Storage.from_string("DB $01, $02, $03, $04, $05, $06, $07, $07, $ff")
-    print(s)
+    if x is not None:
+        IP().location += len(x)
+        print(x)
+    s = Storage.from_string("DB $00, $01, $01, $02, $03, $05, $08, $0d, 021, %00100010")
+    if x is not None:
+        IP().location += len(s)
+        print(s)
+    print(IP())

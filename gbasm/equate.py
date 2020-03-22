@@ -103,7 +103,7 @@ class _EquateParser:
                 return None
         val = EC().value_from_expression(equ_val)
         if val:
-            return Label(label_name, val, force_const=True)
+            return Label(label_name, val, constant=True)
         return None
 
 

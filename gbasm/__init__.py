@@ -8,7 +8,6 @@ try:
 except ImportError:
     pass
 
-from gbasm.constants import Constants
 from gbasm.reader import Reader, BufferReader, FileReader
 from gbasm.exception import Error, ErrorCode
 from gbasm.instruction import Instruction, InstructionSet, InstructionPointer

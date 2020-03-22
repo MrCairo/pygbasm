@@ -35,17 +35,17 @@ class Instruction:
 
     def __str__(self):
         desc = "    " + self.mnemonic()
+        unresolved = False
         if self._lex_results.lexer_tokens().operands():
             desc += " " + ',' . \
                 join(f"{x}" for x in
                      self._lex_results.lexer_tokens().operands())
-            desc += "\n"
+            desc += " ;;"
         if self._lex_results:
             if self.machine_code():
-                desc += "       Code = "
+                desc += " "
                 for byte in self.machine_code():
-                    desc += f"{byte:02x} "
-                desc += "\n"
+                    desc += f"{byte:02x} ".upper()
             else:
                 if self._lex_results.operand1_error():
                     desc += "  Op1 error = " + \
@@ -55,17 +55,20 @@ class Instruction:
                     desc += "  Op2 error = " + \
                         self._lex_results.operand2_error().__repr__()
                     desc += "\n"
-            if self.placeholder():
-                desc += "Placeholder = " + self.placeholder()
-                desc += "\n"
+            # if self.placeholder():
+            #     desc += "Placeholder = " + self.placeholder()
+            #     desc += "\n"
             if self._lex_results.unresolved():
-                desc += "Unresolved = " + self._lex_results.unresolved()
-                desc += "\n"
+                unresolved = True
+                # desc += "Unresolved = " + self._lex_results.unresolved()
+                # desc += "\n"
         if len(self.labels):
-            desc += "Labels:\n"
+            desc += " ("
             for label in self.labels:
-                desc += label.__repr__()
-                desc += "\n"
+                desc += label.name()
+                desc += ") "
+                desc += "" if not unresolved else " [unresolved] "
+        desc += "\n"
         return desc
 
     def __repr__(self):

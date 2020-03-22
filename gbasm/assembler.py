@@ -134,15 +134,18 @@ class Assembler:
         pp = pprint.PrettyPrinter(indent=2, compact=False, width=40)
         for code_node in self.code:
             type_name = code_node.type_name
+            type_name = type_name if type_name != INST else ""
+            offset = code_node.offset
             code = code_node.code_obj
             if type_name == NODE:
                 print("Invalid instruction:")
                 pp.pprint(code)
                 continue
-            desc = f"\n\nType: {type_name}\n"
+            desc = f"Type: {type_name}\n"
+            desc += f"{hex(IP().base_address + offset)}:   {code.__str__()}\n"
             # desc += f"Offset: {code_node.offset}\n"
-            desc += "Code:"
-            desc += pp.pformat(code.__str__())
+            # desc += "Code:"
+            # desc += pp.pformat(code.__str__())
             print(desc)
 
     # --==[ End of class ]==-- #

@@ -27,14 +27,16 @@ class ExpressionConversion():
             '$': self._hex_to_dec,
             '0': self._dec,
             '%': self._bin_to_dec,
-            '&': self._oct_to_dec
+            '&': self._oct_to_dec,
+            '0x': self._hex_to_dec
         }
         self._from_dec = {
             '$': self._dec_to_hex,
             '$$': self._dec_to_hex16,
             '0': self._dec_to_dec,
             '%': self._dec_to_bin,
-            '&': self._dec_to_oct
+            '&': self._dec_to_oct,
+            '0x': self._dec_to_hex
         }
         self._8_bit_registers = ['B', 'C', 'D', 'E', 'H', 'L', 'A']
         self._16_bit_registers = ['BC', 'DE', 'HL', 'F', 'PC', 'SP']
