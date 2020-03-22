@@ -15,6 +15,9 @@ except ImportError:
 from gbasm import Assembler
 
 asm = """
+***************
+* Program Start
+***************
 SECTION "CoolStuff",WRAM0
 CLOUDS_X: DB $FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00
 BUILDINGS_X: DS 1
@@ -29,20 +32,20 @@ START_PLAY:: DS 1
 IMAGES    EQU $10
 BIGVAL    EQU 65500
 
-SECTION "game", ROMX
+; SECTION "game", ROMX
 
-.update_game:
-    ld A, (HL)
-    jr nz, .update_game
+update_game:
+    ld A, [HL]
+    jr nz, .update_game ; should be 0x20 fd
     ld HL, BIGVAL   ; should be 0x21 dc ff
     ld HL, SP+$55   ; should be 0xf8 55
-    ldhl sp, $6a    ; should be 0xf8 6a
-    jr .continue_update_1
-    ld A, (HL)
+    ; ldhl sp, $6a    ; should be 0xf8 6a
+    jr continue_update_1 ; should be 0x18 04
+    ld A, [HL]
     XOR D
     CP H
     CP L
-.continue_update_1:
+continue_update_1:
     CP A
 """
 

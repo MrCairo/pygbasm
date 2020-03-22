@@ -1,27 +1,33 @@
 """
 Classes to handle labels.
 """
-#
-#
-# if __name__ == "__main__":
-#     import gbasm_dev
-#     gbasm_dev.include_developer_path()
+import imp
+try:
+    imp.find_module('gbasm_dev')
+    from gbasm_dev import set_gbasm_path
+    set_gbasm_path()
+except ImportError:
+    pass
 
 import string
 from singleton_decorator import singleton
+from enum import IntEnum
 from gbasm.instruction.instruction_pointer import InstructionPointer
+from gbasm.instruction.instruction_set import InstructionSet
 from gbasm.constants import DIRECTIVES, LBL
 
+
+class LabelScope(IntEnum):
+    LOCAL = 1
+    GLOBAL = 2
+
 ###############################################################################
-class Label():
+class Label(object):
     """
     Represents a label which is used to represent an address or constant.
     """
 
-    LOCAL_SCOPE = 0
-    GLOBAL_SCOPE = 1
-
-    def __init__(self, name: str, value: int, force_const: bool=False):
+    def __init__(self, name: str, value: int, constant: bool=False):
         """
         Represents a label which is, in turn, used to represent an address
         or a constant in the program.
@@ -50,39 +56,24 @@ class Label():
         # Valid:
         #   .label:      (local non-constant label)
         #   .label::     (global non-constant label)
-        #   label        (EQU local constant label)
-        if name.endswith("::") and name.startswith("."):
-            self._scope = Label.GLOBAL_SCOPE
-        elif name.endswith(":") and name.startswith("."):
-            self._scope = Label.LOCAL_SCOPE
-        elif (name[0].isalpha() and name_valid_label_chars(name)):
-            self._scope = Label.LOCAL_SCOPE
-            self._constant = True
-        else:
-            raise ValueError
-        # Label can't be
-        if name.upper() in DIRECTIVES:
-            raise TypeError
-
-        # Label now must be an EQU since it doesn't have a scope character
-        # Local/Global scope labels must start with a '.'
-        # EQU labels are only alpha-numeric
-        if name.startswith(".") and self.is_constant:
+        #   Label        (local)
+        self._scope = self._scope_and_validate(name)
+        if self._scope is None:
             raise ValueError
 
         self._original_label = name
-        self._clean_label = (name.lstrip(" .")).rstrip(":. ")
+        self._clean_label = (name.lstrip(".")).rstrip(":. ")
         self._value = value
         self._base_address = InstructionPointer().base_address
         self._local_hash: str
-        self._force_const = force_const
-        if force_const:  # Override const
+        self._constant = constant
+        if constant:  # Override const
             self._constant = True
 
     def __str__(self):
         is_const = "---"
         is_const = "Yes" if self._constant else "No"
-        scope = "local" if self._scope == Label.LOCAL_SCOPE else "global"
+        scope = "local" if self._scope == LabelScope.LOCAL else "global"
         desc = f"\nLabel: {self._original_label}\nvalue: 0x{self._value:04x} "
         desc += f"is constant: {is_const}"
         desc += f"\nScope: {scope}"
@@ -90,7 +81,7 @@ class Label():
 
     def __repr__(self):
         desc = f"Label(\"{self._original_label}\", {self._value}, " \
-            f"force_const={self._force_const})"
+            f"constant={self._constant})"
         return desc
 
     @staticmethod
@@ -136,7 +127,7 @@ class Label():
         """
         Return True if the scope of the label is global.
         """
-        return self._scope == self.GLOBAL_SCOPE
+        return self._scope == LabelScope.GLOBAL
 
     @property
     def base_address(self) -> int:
@@ -156,6 +147,30 @@ class Label():
         """
         self._base_address = new_value
 
+    def _scope_and_validate(self, name:str) -> LabelScope:
+        valid = (name[0].isalpha or name[0] == ".") and name_valid_label_chars(name)
+        self._scope = None
+
+        # The . can only appear at the beginning of the string. It's
+        # invalid if it appears anywhere else.
+        valid = name.count(".") <= 1
+
+        colons = name.count(":") # Do we have scope characters?
+        if colons and colons <= 2:
+            if valid and name.endswith(":") and colons == 1:
+                self._scope = LabelScope.LOCAL
+
+            if valid and name.endswith("::") and colons == 2:
+                self._scope = LabelScope.GLOBAL
+
+        if valid:
+            clean = name.replace(":", "").replace(".", "").upper()
+            valid = clean not in DIRECTIVES
+            valid = False if InstructionSet().is_mnemonic(clean) else True
+
+        if self._scope is None:
+            self._scope = LabelScope.LOCAL if valid else None
+        return self._scope
     # --------========[ End of class ]========-------- #
 
 
@@ -167,16 +182,13 @@ def is_valid_label(name: str):
     label = Label(name.strip(), 0x00)  # Can we create a label from it?
     return label is not None
 
-
 def valid_label_chars():
     """Returns an array (string)  of all valid characters of a label."""
     return string.ascii_letters + string.digits + ".:_"
 
-
 def valid_label_first_char():
     """Returns an array (string) of all valid 1st characters of a label"""
     return string.ascii_letters + "."
-
 
 def name_valid_label_chars(line: str):
     valid = True
@@ -273,6 +285,8 @@ class Labels(dict):
 
 
 if __name__ == "__main__":
+    label = Label("Hello", 100)
+    print(label)
     def test_label():
         label = Label('.GOTO_LABEL:', 0x1000)
         if label is None:
@@ -286,4 +300,4 @@ if __name__ == "__main__":
             print("Unable to find the label.")
             print(Labels())
 
-    test_label()
+#    test_label()

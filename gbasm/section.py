@@ -16,13 +16,17 @@ from gbasm.constants import EQU, LBL, INST, STOR, SEC
 # Class that is just a namedtuple representing the Section start and end
 # address.
 class SectionAddress(namedtuple('SectionAddress', 'start, end')):
+    """
+    This class is actually a tuple that holds the start and end address
+    of a section.
+    """
     pass
 
-
 ###############################################################################
-
 class SectionType:
-
+    """
+    A class of section types from WRAM0 to OAM.
+    """
     def __init__(self):
         #                                             start, end
         #-------------------------------------------------------------
@@ -34,7 +38,6 @@ class SectionType:
                           "WRAMX": {'id': 5, 'addr':(0xD000, 0xDFFF)},
                           "SRAM":  {'id': 6, 'addr':(0xA000, 0xBFFF)},
                           "OAM":   {'id': 7, 'addr':(0xFE00, 0xFE9F)}}
-
 
     @property
     def sections(self):

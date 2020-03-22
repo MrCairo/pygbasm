@@ -27,6 +27,8 @@ class BasicLexer:
         while self._reader.is_eof() is False:
             line = self._reader.read_line()
             if line:
+                if line[0] == "*":  # This is a line comment. Ignore it.
+                    continue
                 line = line.upper().split(";")[0].strip()  # drop comments
                 if not line:
                     continue

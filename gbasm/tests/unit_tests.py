@@ -61,10 +61,10 @@ class TestLabelMethods(unittest.TestCase):
         label = Label(".ShouldNotBeConst:", 32768)
         self.assertFalse(label.is_constant)
 
-    def test_label_force_const(self):
-        label = Label(".ShouldNotBeConst:", 32768, force_const=True)
+    def test_label_constant(self):
+        label = Label(".ShouldNotBeConst:", 32768, constant=True)
         self.assertTrue(label.is_constant)
-        label = Label("ShouldBeConst2", 128, force_const=False)
+        label = Label("ShouldBeConst2", 128, constant=False)
         # Should be const. Fale == don't force to const.
         # So, if the value is supposed to be const, is stays that way
         self.assertTrue(label.is_constant)
@@ -160,7 +160,7 @@ def label_suite():
     suite.addTest(TestLabelMethods('test_label_value'))
     suite.addTest(TestLabelMethods('test_label_default_const'))
     suite.addTest(TestLabelMethods('test_label_default_non_const'))
-    suite.addTest(TestLabelMethods('test_label_force_const'))
+    suite.addTest(TestLabelMethods('test_label_constant'))
     suite.addTest(TestLabelMethods('test_label_is_global'))
     suite.addTest(TestLabelMethods('test_label_is_local'))
     # Labels Container Tests
