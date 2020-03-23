@@ -46,12 +46,6 @@ class CodeOffset(CodeOffset_):
     """
     pass
 
-# class CodeOffset(object):
-#     def __init__(self, offset:int, reference_frame:ReferenceType, reference_detail=None):
-#         self.offset = offset
-#         self.reference_frame = reference_frame
-#         self.reference_detail = reference_frame
-
 
 class CodeNode(object):
     """
@@ -102,5 +96,3 @@ if __name__ == "__main__":
     x = CodeNode(STOR, s, 0x4000)
     print(s)
     print(x)
-
-

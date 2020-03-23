@@ -4,3 +4,7 @@ GTAGS
 **/__pycache__
 **/auto_complete
 *~
+venv
+.idea
+.vscode
+
