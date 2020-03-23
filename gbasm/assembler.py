@@ -97,6 +97,9 @@ class Assembler:
 
     def pass1(self):
         """Starts the parsing of the file specified in the Reader class."""
+        # TODO: Maybe update pass1 to capture variables/macros/labels?
+        # Still have to possibly worry about global references that might
+        # exist in other files or be references to an undefined label.
         self._line_no = 0
         nodes: [CodeNode] = []
         # Pass 1 resolves symbols. Any global symbols are stored
