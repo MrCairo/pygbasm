@@ -6,7 +6,7 @@ import string
 from singleton_decorator import singleton
 from enum import IntEnum
 
-import gbasm.core as core
+from .constants import LBL, DIRECTIVES
 
 class LabelScope(IntEnum):
     LOCAL = 1
@@ -39,6 +39,7 @@ class Label(object):
             to the current identified SECTION as reported by the
             InstructionPointer object.
         """
+        from .instruction_pointer import InstructionPointer
         if not name:
             raise ValueError(name)
 
@@ -55,7 +56,7 @@ class Label(object):
         self._original_label = name
         self._clean_label = (name.lstrip(".")).rstrip(":. ")
         self._value = value
-        self._base_address = core.InstructionPointer().base_address
+        self._base_address = InstructionPointer().base_address
         self._local_hash: str
         self._constant = constant
         if constant:  # Override const
@@ -78,7 +79,7 @@ class Label(object):
     @staticmethod
     def typename():
         """Returns the string name of this class's type."""
-        return core.LBL
+        return LBL
 
     def clean_name(self) -> str:
         """Returns the cleaned valid label stripped of the first and
@@ -159,9 +160,10 @@ class Label(object):
                 self._scope = LabelScope.GLOBAL
 
         if valid:
+            from .instruction_set import InstructionSet
             clean = name.replace(":", "").replace(".", "").upper()
-            valid = clean not in core.DIRECTIVES
-            valid = False if core.InstructionSet().is_mnemonic(clean) else True
+            valid = clean not in DIRECTIVES
+            valid = False if InstructionSet().is_mnemonic(clean) else True
 
         if self._scope is None:
             self._scope = LabelScope.LOCAL if valid else None

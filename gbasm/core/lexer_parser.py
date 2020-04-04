@@ -1,226 +1,135 @@
 import pprint
 
-import gbasm.core as core
+from .exception import Error, ErrorCode
+from .conversions import ExpressionConversion
+from .reader import Reader, BufferReader
+from .constants import DIRECTIVES, STORAGE_DIR
+from .constants import DIR, TOK, EXT, NODE, MULT, EQU, LBL, INST, STOR, SEC
+from .registers import Registers
+from .instruction_set import InstructionSet as IS
+from .lexer_results import LexerResults, LexerTokens
 
-EC = core.ExpressionConversion
-IS = core.InstructionSet
+EC = ExpressionConversion
 
-TOK = core.TOK
-Error = core.Error
-ErrorCode = core.ErrorCode
+class BasicLexer:
+    def __init__(self, reader: Reader):
+        self._line_no: int = 0
+        self._tokenized: list = []
+        self._reader = reader
+        self._file_name = reader.filename
 
-class LexerTokens:
+    @classmethod
+    def from_string(cls, text: str):
+        "Tokenize using a buffer of text."
+        reader = BufferReader(text)
+        return cls(reader)
+
+    def tokenize(self):
+        """Tokenizes the the Reader starting at the current read position."""
+        while self._reader.is_eof() is False:
+            line = self._reader.read_line()
+            if line:
+                if line[0] == "*":  # This is a line comment. Ignore it.
+                    continue
+                line = line.upper().split(";")[0].strip()  # drop comments
+                if not line:
+                    continue
+                self._line_no += 1
+                tokens = tokenize_line(line)
+                tokens['source_line'] = self._line_no
+                self._tokenized.append(tokens)
+
+    def tokenized_list(self):
+        """
+        Returns the array of tokenized lines in the source file.
+        """
+        return self._tokenized
+
+    # --------========[ End of class ]========-------- #
+
+
+def is_node_valid(node: dict) -> bool:
     """
-    A data class that stores the instruction tokens and provides easy
-    access to the token values.
+    Returns True if the provided node contains a directive and token.
     """
-    def __init__(self, tokens: dict) -> None:
-        self._top = tokens if tokens else {}
-        self._tok = {} if "tok" not in tokens else tokens
-        self._extra = {}
+    result = False
+    if node:
+        if DIR in node and TOK in node:
+            result = True
+    return result
 
-    def tokens(self):
-        """
-        The raw tokens created by the lexer. It still may have values
-        even if the instruction parsed was invalid.
-        """
-        return None if "tok" not in self._tok else self._tok["tok"]
-
-    def opcode(self) -> str:
-        """
-        Returns the opcode (mnemonic) from the tokens
-        """
-        return self._exploded_val("opcode")
-
-    def operands(self) -> [str]:
-        """
-        Returns the operands from the tokens
-        """
-        return self._exploded_val("operands")
-
-    def definition(self) -> dict:
-        """
-        Returns the instruction definition as defined in the
-        InstructionSet
-        """
-        ins_def = None if "ins_def" not in self._tok else self._tok["ins_def"]
-        return ins_def
-
-    def extra(self) -> dict:
-        return self._extra
-
-    def set_extra(self, key, value):
-        self._extra[key] = value
-
-    def _exploded_val(self, key):
-        tok = self.tokens()
-        if not tok:
-            return None
-        ops = None if key not in tok else tok[key]
-        return ops
-
-    # --------========[ End of ParserTokens class ]========-------- #
-
-
-class LexerResults:
+def is_compound_node(node: dict) -> bool:
     """
-    Encapsulates a result from parsing an instruction. This class
-    stores the bytearray of the parsed instruction or an error string.
-    A Lexeresult object with out the 'data; property being set indicates
-    a failed parse. In this case the '*error' properties should contain the
-    error information (via the Error object). All methods return None if
-    it's value doesn't exist either due to no data present.
+    Returns True if the provided node is valid and contains other nodes
+    with the 'tokens' key.
     """
-    _raw: dict = {}
-    _tok: LexerTokens = {}
+    if not is_node_valid(node):
+        return False
+    nodes = None
+    result = False
+    if node[DIR] == MULT:
+        nodes = node[TOK]
+    if nodes:
+        for n in nodes:
+            result = is_node_valid(n)
+            if not result:
+                break
+    return result
 
-    def __init__(self, raw_results: dict, tokens: LexerTokens) -> None:
-        self._raw = {} if raw_results is None else raw_results
-        self._tok = {} if tokens is None else tokens
+def tokenize_line(line: str) -> dict:
+    """
+    Tokenizes a line of text into usable assembler chunks. Chunks are
+    validated and a tokenized dictionary is returned.
+    """
+    from .label import Label, LabelScope, LabelUtils
 
-    def lexer_tokens(self) -> LexerTokens:
-        """
-        The tokenized values of the parsed instruction. The presense of tokens
-        does NOT indicate a successful parse of the instruction.
-        """
-        return self._tok
+    clean = line.strip().split(';')[0]
+    if not clean:
+        return None  # Empy line
+    tokens = {}
+    clean = _join_parens(line)
+    clean_split = clean.replace(',', ' ').split()
+    if clean_split[0] in DIRECTIVES:
+        tokens[DIR] = clean_split[0]
+        tokens[TOK] = clean_split
+    elif clean_split[0] in STORAGE_DIR:
+        tokens[DIR] = STOR
+        tokens[TOK] = clean_split
+    elif IS().is_mnemonic(clean_split[0]):
+        tokens[DIR] = INST
+        tokens[TOK] = clean_split
+    elif line[0] in LabelUtils.valid_label_first_char():
+        if LabelUtils.is_valid_label(clean_split[0]):
+            tokens[DIR] = LBL
+            data = clean_split
+            if len(clean_split) > 1:
+                data = [{DIR: LBL, TOK: clean_split[0]}]
+                tokens[DIR] = MULT
+                remainder = ' '.join(clean_split[1:])
+                more = tokenize_line(remainder)
+                data.append(more)
+                tokens[TOK] = data
+            else:
+                tokens[TOK] = clean_split[0]
+    if not tokens:
+        tokens[DIR] = "UNKNOWN"
+        tokens[TOK] = clean_split
+    return tokens
 
-    def addr(self) -> str:
-        """
-        Represents the opcode value of the instruction as hex string.
-        Additional operand data does not appear here but instead
-        appears in binary form via the binary() method or in text
-        via the operand1() or operand2() methods.
-        """
-        return self._if_found("addr")
-
-    def binary(self) -> bytes:
-        """
-        The binary representation of the parsed instruction.
-        """
-        return self._if_found("bytes")
-
-    def cpu_cycles(self) -> list:
-        """
-        Informational only data that represents the number of CPU Cycles that
-        the instruction takes.
-        """
-        return self._if_found("cycles")
-
-    def flags(self) -> list:
-        """
-        An array of with the values of the Z, N, H, C CPU flags in that order.
-        Z = Zero flag. A 'Z' indicates that the instruction can result in a
-            zero value.
-        N = Add/Sub flag. N = 1 if the previous operation was a subtract
-        H = Half Cary flag. H = 1 if the add or subtract operation produced a
-            carry into or borrow' from bit 4 of the accumulator.
-        C = Carry/link flag C = 1 if the operltlon produced a carry from the
-            MSB of the operand or result.
-        - = Flag is unaffected by the operation.
-        """
-        f = ['-', '-', '-', '-']
-        if "flags" in self._raw:
-            for (idx, val) in enumerate(self._raw['flags'], start=0):
-                if idx < 4:
-                    f[idx] = val
-        return f
-
-    def length(self) -> int:
-        """
-        The length in bytes of the instruction. This is the opcode plus
-        value-based operands if present.
-        """
-        return self._if_found("length")
-
-    def mnemonic(self) -> str:
-        """ The mnemonic (or opcode) of the instruction. """
-        return self._if_found("mnemonic")
-
-    def mnemonic_error(self) -> Error:
-        """ The error if the mnemonic was invalid. """
-        return self._if_found("mnemonic_error")
-
-    def operand1(self) -> str:
-        """ The first operand if present. """
-        return self._if_found("operand1")
-
-    def operand2(self) -> str:
-        """ The second operand if present. """
-        return self._if_found("operand2")
-
-    def operand1_error(self) -> Error:
-        """
-        Contains the error found when processing operand1. A None
-        indicates that there is no error.
-        """
-        return self._if_found("operand1_error")
-
-    def clear_operand1_error(self) -> None:
-        """
-        Clears any operand1 error value. This is typically used if the
-        operand was originally an error due to an unresolved label that
-        gets resolved after this object was created.
-        """
-        if self._if_found("operand1_error"):
-            del self._raw["operand1_error"]
-
-    def operand2_error(self) -> Error:
-        """
-        Contains the error found when processing operand2. A None
-        indicates that there is no error.
-        """
-        return self._if_found("operand2_error")
-
-    def clear_operand2_error(self) -> None:
-        """
-        Clears any operand2 error value. This is typically used if the
-        operand was originally an error due to an unresolved label that
-        gets resolved after this object was created.
-        """
-        if self._if_found("operand2_error"):
-            del self._raw["operand2_error"]
-
-    def placeholder(self) -> str:
-        """
-        The placeholder found and processed in the instruction.
-        A placeholder can be one of the following values:
-        d8  = immediate 8 bit data.
-        d16 = immediate 16 bit data.
-        a8  = 8 bit unsigned data, which are added to $FF00 for certain
-              instructions (replacement for missing IN and OUT instructions)
-        a16 = a 16 bit address
-        r8  = 8 bit signed data, which are added to program counter
-        """
-        return self._if_found("placeholder")
-
-    def extra(self) -> dict:
-        """
-        Returns a list of instruction/parsed specific data. The data are
-        completely optional and provides no indication if the instruction
-        is valid or not.
-        """
-
-    def unresolved(self) -> str:
-        """
-        Returns any value that is/was considered unresolved when the
-        instruction was initially parsed.
-        """
-        return self._if_found("unresolved")
-
-    def is_valid(self):
-        """
-        Returns true if operand1 or operand2 contains an error.
-        """
-        test = self.mnemonic_error() is None and \
-            self.operand1_error() is None and \
-            self.operand2_error() is None
-        return test
-
-    def _if_found(self, key):
-        return None if key not in self._raw else self._raw[key]
-
-    # --------========[ End of LexerResults class ]========-------- #
+def _join_parens(line) -> str:
+    new_str = ""
+    paren = 0
+    for c in line:
+        if c == " " and paren > 0:
+            continue
+        if c in "([{":
+            paren += 1
+        elif c in ")]}":
+            paren -= 1
+        paren = max(0, paren) # If Negative set to 0
+        new_str += c
+    return new_str
+# --------========[ End of LexerResults class ]========-------- #
 
 
 class InstructionParser:
@@ -230,7 +139,7 @@ class InstructionParser:
         self._tokens = None
         self._final = {}
         self.state = None
-        if core.is_node_valid(node):
+        if is_node_valid(node):
             self._final = self._parse(node[TOK])
 
     @classmethod
@@ -239,7 +148,7 @@ class InstructionParser:
         Constructs an InstructionParser object from an instruction string.
         """
         if instruction:
-            lex = core.BasicLexer.from_string(instruction)
+            lex = BasicLexer.from_string(instruction)
             if lex:
                 lex.tokenize()
                 return cls(lex.tokenized_list()[0])
@@ -272,6 +181,9 @@ class InstructionParser:
         """
         This parses the tokens created in the _tokenize function.
         """
+        #~~~~ Lazy Load ~~~#
+        from .label import LabelUtils
+        #~~~~~~~~~~~~~~~~~~#
         mnemonic = tokens[0]
         ins = IS().instruction_from_mnemonic(mnemonic)
         main = {"tok": {"opcode": mnemonic, "operands": tokens[1:]},
@@ -297,8 +209,8 @@ class InstructionParser:
                     continue
                 # Is this _maybe_ a placeholder? Store it as a possible one.
                 tmp = arg.strip("()")
-                if tmp[0] in core.LabelUtils.valid_label_first_char():
-                    if core.LabelUtils.name_valid_label_chars(tmp):
+                if tmp[0] in LabelUtils.valid_label_first_char():
+                    if LabelUtils.name_valid_label_chars(tmp):
                         self.state.unresolved = tmp
         if "!" in self.state.roamer:
             # This means that the instruction was found and processed
@@ -361,7 +273,10 @@ class InstructionParser:
         False if arg is a valid register but not for this instruction.
         None if arg is not a valid register.
         """
-        if core.Registers().is_valid_register(self.state.arg):
+        #~~~~ Lazy Load ~~~#
+        #~~~~~~~~~~~~~~~~~~#
+
+        if Registers().is_valid_register(self.state.arg):
             if self.state.roam_to_arg():
                 self.state.set_operand_to_val(self.state.arg)
                 return True
@@ -543,7 +458,7 @@ class _State:
         if byte is None:
             final = {}
         else:
-            final = core.InstructionSet().instruction_detail_from_byte(byte)
+            final = IS().instruction_detail_from_byte(byte)
         if final is not None:
             final["bytes"] = bytes(self.ins_bytes)
             if self.unresolved:

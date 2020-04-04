@@ -187,7 +187,7 @@ def load_instruction_set() -> dict:
     filedir = os.path.realpath(
         os.path.join(os.getcwd(),
                      os.path.dirname(__file__)))
-    json_filename = f'{filedir}/../instruction/gbz80-hex.json'
+    json_filename = f'{filedir}/../instruction/LR35902-hex.json'
     if os.path.exists(json_filename):
         fh = open(json_filename)
         return json.load(fh)

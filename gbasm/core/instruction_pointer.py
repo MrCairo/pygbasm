@@ -2,7 +2,8 @@
 A set of helper functions used during processing of instructions.
 """
 from singleton_decorator import singleton
-from gbasm.conversions import ExpressionConversion
+
+from .conversions import ExpressionConversion as EC
 
 ###############################################################################
 # Manages the instruction pointer position. Nececesary to compute
@@ -80,7 +81,7 @@ class InstructionPointer():
         This relates to the SECTION value that the IP is in.
         """
         # A value can be an expression such as $FFD2
-        _conv = ExpressionConversion()
+        _conv = EC()
         address = _conv.value_from_expression(new_value)
         #print(f"IP: Setting Address to {hex(address)}")
         if address is None:

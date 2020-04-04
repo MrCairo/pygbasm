@@ -11,17 +11,14 @@ except ImportError:
     pass
 
 from enum import Enum
-import gbasm.core as core
-import gbasm.core.constants as const
 
-DIR = const.DIR
-TOK = const.TOK
-STOR = const.STOR
+from .constants import DIR, TOK, STOR
+from .instruction_pointer import InstructionPointer as IP
+from .conversions import ExpressionConversion as EC
+from .exception import DefineDataError
+from .lexer_parser import is_node_valid, BasicLexer
 
 ###############################################################################
-
-IP = core.InstructionPointer
-EC = core.ExpressionConversion
 
 class StorageType(Enum):
     SPACE = 0
@@ -41,7 +38,7 @@ class Storage:
             self._tok = node[TOK]
             self._parser = StorageParser(node)
             return
-        raise core.DefineDataError("The directive should be STORAGE but isn't")
+        raise DefineDataError("The directive should be STORAGE but isn't")
 
     @classmethod
     def from_string(cls, text: str):
@@ -50,7 +47,7 @@ class Storage:
         directives
         """
         if text:
-            tok = core.BasicLexer.from_string(text)
+            tok = BasicLexer.from_string(text)
             tok.tokenize()
             return cls(tok.tokenized_list()[0])
         return cls({})
@@ -113,11 +110,11 @@ class StorageParser:
         self._tok: dict = {}
         self._type_name: str
         self._storage_size = 0
-        if core.is_node_valid(node):
+        if is_node_valid(node):
             self._tok = node[TOK]
             type_name = self._tok[0]
             if type_name not in self.types:
-                raise core.DefineDataError("Storage type must be "\
+                raise DefineDataError("Storage type must be "\
                     "DS, DB, DW, or DL")
             self._storage_size = self.types[type_name]
             self._type_name = type_name
@@ -131,12 +128,26 @@ class StorageParser:
             desc += "Hex data:\n"
             desc += "  "
             col = 0
-            for val in self._data:
-                if self._tok[0] == "DW":
+            step = 1
+            if self._tok[0] == "DW":
+                step = 2
+            elif self._tok[0] == "DL":
+                step = 4
+            for idx in range(0, len(self._data), step):
+                val = self._data[idx]
+                if step == 2:
+                    val = val << 8
+                    val += self._data[idx+1]
                     desc += f"{val:04x} "
-                elif self._tok[0] == "DL":
+                    idx += 1
+                elif step == 4:
+                    val = 0
+                    for x in range(0, 4):
+                        val += self._data[idx+x]
+                        val <<= 8 if x < 3 else 0
                     desc += f"{val:08x} "
-                    col += 1  # This reduces the number of cols
+                    # Reduce the num of cols to account for the longer strings.
+                    col += 1
                 else:
                     desc += f"{val:02x} "
                 col += 1
@@ -177,7 +188,7 @@ class StorageParser:
 
     def data(self):
         """Returns the storage data as an array of bytes."""
-        return bytes(self._data)
+        return self._data
 
 
     # -----=====< End of public methods >=====----- #
@@ -218,7 +229,7 @@ class StorageParser:
             return size
         err = "Invalid DS parameter(s): Size must ba number < 1024 and "\
               "value must be number < 256."
-        raise core.DefineDataError(err)
+        raise DefineDataError(err)
 
     def _to_bytes(self, data_list):
         in_quotes = False
@@ -235,7 +246,7 @@ class StorageParser:
                 if item.startswith('"'):
                     if in_quotes:
                         msg = "A String cannot contain a string"
-                        raise core.DefineDataError(msg)
+                        raise DefineDataError(msg)
                     in_quotes = True
                     item = item[1:]
             if in_quotes:
@@ -250,7 +261,7 @@ class StorageParser:
             value = EC().value_from_expression(item.strip())
             if not 256 > value >= 0:
                 msg = "DB should only allow byte value from 0x00 to 0xFF"
-                raise core.DefineDataError(msg)
+                raise DefineDataError(msg)
             self._data.append(value)
             bytes_added += 1
         return bytes_added
@@ -261,8 +272,10 @@ class StorageParser:
             num = EC().value_from_expression(item.strip())
             if not 65536 > num >= 0:
                 msg = f"DB should only allow byte value from 0x00 to 0xFFFF"
-                raise core.DefineDataError(msg)
-            self._data.append(num)
+                raise DefineDataError(msg)
+            vals = self._to_byte_array(num, 16)
+            for v in vals:
+                self._data.append(v)
             words_added += 1
         return words_added
 
@@ -270,13 +283,22 @@ class StorageParser:
         words_added = 0
         for item in data_list:
             num = EC().value_from_expression(item.strip())
-            if not 4294967295 > num >= 0:
+            if not 4294967296 > num >= 0:
                 msg = "DB should only allow byte value from 0x00 to 0xFFFFFFFF"
-                raise core.DefineDataError(msg)
-            self._data.append(num)
-            words_added += 1
+                raise DefineDataError(msg)
+            vals = self._to_byte_array(num, 32)
+            for v in vals:
+                self._data.append(v)
+            words_added += 2
         return words_added
 
+    def _to_byte_array(self, val, bits) -> bytearray:
+        vals = bytearray()
+        while bits > 0:
+            vals.insert(0, val & 0xff)
+            val = val >> 8
+            bits -= 8
+        return vals
 
 ################################ End of class #################################
 ###############################################################################
