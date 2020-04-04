@@ -6,9 +6,11 @@ from collections import namedtuple
 import tempfile
 import pprint
 
-import gbasm.core as core
-import gbasm.core.constants as const
-import gbasm.assembler as asm
+from ..core import InstructionSet, InstructionPointer, ExpressionConversion
+from ..core import FileReader, BufferReader, BasicLexer
+from ..core import NODE, INST, is_node_valid, is_compound_node
+from .code_node import CodeNode, CodeOffset, ReferenceType
+from .node_processor import NodeProcessor
 
 # from gbasm.reader import BufferReader, FileReader, Reader
 # from gbasm.section import Section
@@ -40,9 +42,9 @@ class ParserState(IntEnum):
     ASSEMBLE = auto()
 
 
-EC = core.ExpressionConversion
-IS = core.InstructionSet
-IP = core.InstructionPointer
+EC = ExpressionConversion
+IS = InstructionSet
+IP = InstructionPointer
 
 
 """
@@ -66,24 +68,24 @@ class Assembler:
         self.reader = None
         self.line_no = 0
         self._parser = None
-        self.code: [asm.CodeNode] = []
+        self.code: [CodeNode] = []
         self.lexer = None
         self._np = None
 
     def load_from_file(self, filename):
         """Loads the assembly program from a file."""
         self.filename = filename
-        self.reader = core.FileReader(filename)
-        self.lexer = core.BasicLexer(self.reader)
+        self.reader = FileReader(filename)
+        self.lexer = BasicLexer(self.reader)
 
     def load_from_buffer(self, buffer_in):
         """Loads the assembly program from a memory buffer."""
-        self.reader = core.BufferReader(buffer_in)
-        self.lexer = core.BasicLexer(self.reader)
+        self.reader = BufferReader(buffer_in)
+        self.lexer = BasicLexer(self.reader)
 
     def parse(self):
         """Starts the assembler's parser."""
-        self._np = asm.NodeProcessor(self.reader)
+        self._np = NodeProcessor(self.reader)
         print("-------------- Stage 1 -------------")
         self.pass1()
         print("-------------- Stage 2 -------------")
@@ -97,7 +99,7 @@ class Assembler:
         # Still have to possibly worry about global references that might
         # exist in other files or be references to an undefined label.
         self._line_no = 0
-        nodes: [asm.CodeNode] = []
+        nodes: [CodeNode] = []
         # Pass 1 resolves symbols. Any global symbols are stored
         # in the Global symbols array.
         self.lexer.tokenize()
@@ -115,12 +117,12 @@ class Assembler:
         because it contained a forward referenced label within the same
         file. Otherwise, it's possibly a global label or an error.
         """
-        new_code: [asm.CodeNode] = []
+        new_code: [CodeNode] = []
         for (_, code_node) in enumerate(self.code):
             type_name = code_node.type_name
             code = code_node.code_obj
-            if type_name == const.NODE:
-                if not core.is_node_valid(code):
+            if type_name == NODE:
+                if not is_node_valid(code):
                     continue
                 new_nodes = self._np.process_node(code)
                 if new_nodes:
@@ -135,10 +137,10 @@ class Assembler:
         pp = pprint.PrettyPrinter(indent=2, compact=False, width=40)
         for code_node in self.code:
             type_name = code_node.type_name
-            type_name = type_name if type_name != const.INST else ""
+            type_name = type_name if type_name != INST else ""
             offset = code_node.offset
             code = code_node.code_obj
-            if type_name == const.NODE:
+            if type_name == NODE:
                 print("Invalid instruction:")
                 pp.pprint(code)
                 continue
@@ -156,7 +158,7 @@ class Assembler:
 class Macro(object):
     """
     """
-    def __init__(self, reader: core.FileReader):
+    def __init__(self, reader: FileReader):
         self.reader = reader
 
 if __name__ == "__main__":

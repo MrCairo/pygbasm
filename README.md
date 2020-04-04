@@ -21,7 +21,7 @@ objects. Unit tests are being built out and consist of a bunch of Label
 tests.
 
 Many of the python files have a __main__ that runs a simple smoke-test of
-the object(s) in the file. For example, the instruction/instruction.py file
+the object(s) in the file. For example, the instruction.py file
 has several allocate/print statements, some of them negative.
 
 # Simple Example

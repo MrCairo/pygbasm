@@ -3,7 +3,7 @@ Z80 Assembler
 """
 import imp
 import os
-os.environ['PYGBASM_HOME'] = os.path.dirname(os.path.realpath(__file__))
+os.environ['PYGBASM_HOME'] = os.path.dirname(os.path.realpath(__file__ + "/.."))
 
 try:
     imp.find_module('gbasm_dev')
@@ -12,7 +12,7 @@ try:
 except ImportError:
     pass
 
-from gbasm import Assembler
+from gbasm.assembler import Assembler
 
 asm = """
 ***************
@@ -35,20 +35,19 @@ BIGVAL    EQU 65500
 ; SECTION "game", ROMX
 
 update_game:
-    ld A, [HL]
+    ld A, (HL)
     jr nz, .update_game ; should be 0x20 fd
     ld HL, BIGVAL   ; should be 0x21 dc ff
     ld HL, SP+$55   ; should be 0xf8 55
     ; ldhl sp, $6a    ; should be 0xf8 6a
     jr continue_update_1 ; should be 0x18 04
-    ld A, [HL]
+    ld A, (HL)
     XOR D
     CP H
     CP L
 continue_update_1:
     CP A
 """
-
 """
 09/18/2019:
     Need to update the Instruction class (maybe) so that if any part of it is
@@ -59,12 +58,11 @@ assembler = Assembler()
 assembler.load_from_buffer(asm)
 assembler.parse()
 
-    #for item in _instructions:
-    #    print(item)
+#for item in _instructions:
+#    print(item)
 
-    # print(f"Equates: {p.equates}")
-    # print("--- BEGIN LABELS DUMP ---")
-    # for item in Labels().items():
-    #    print(item)
-    # print("---- END LABELS DUMP ----")
-
+# print(f"Equates: {p.equates}")
+# print("--- BEGIN LABELS DUMP ---")
+# for item in Labels().items():
+#    print(item)
+# print("---- END LABELS DUMP ----")

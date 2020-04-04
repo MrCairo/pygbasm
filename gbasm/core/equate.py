@@ -2,8 +2,9 @@
 Manages EQU tokens
 """
 import string
-from gbasm.core.conversions import ExpressionConversion
-from gbasm.core.constants import TOK, DIR, LBL, EQU
+from .label import Label
+from .conversions import ExpressionConversion
+from .constants import TOK, DIR, LBL, EQU
 
 EC = ExpressionConversion
 # TOK = const.TOK
@@ -20,7 +21,7 @@ class Equate:
     """
 
     def __init__(self, tokens: dict):
-        self._label: core.Label = None
+        self._label: Label = None
         self._tok = tokens
 
     def __str__(self):
@@ -81,7 +82,7 @@ class _EquateParser:
             return None
         return self.validate()
 
-    def validate(self) -> core.Label:
+    def validate(self) -> Label:
         """
         An tokenized EQU consists of a LABEL and an EQU node.
         The EQU node will have a token that has two entries:
@@ -105,7 +106,7 @@ class _EquateParser:
                 return None
         val = EC().value_from_expression(equ_val)
         if val:
-            return core.Label(label_name, val, constant=True)
+            return Label(label_name, val, constant=True)
         return None
 
 

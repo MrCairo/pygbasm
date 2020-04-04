@@ -7,14 +7,9 @@ Implementation of a Section
 #
 import string
 from collections import namedtuple
-import gbasm.core as core
-import gbasm.core.constants as const
-
-EQU = const.EQU
-LBL = const.LBL
-INST = const.INST
-STOR = const.STOR
-SEC = const.SEC
+from .constants import EQU, LBL, STOR, INST, SEC
+from .exception import SectionDeclarationError, SectionTypeError
+from .lexer_parser import BasicLexer
 
 ###############################################################################
 
@@ -102,7 +97,7 @@ class Section:
     @classmethod
     def from_string(cls, text: str):
         "Initialize Section from a string"
-        tok = core.BasicLexer.from_string(text)
+        tok = BasicLexer.from_string(text)
         tok.tokenize()
         tok_list = tok.tokenized_list()
         if len(tok_list):
@@ -152,7 +147,7 @@ class SectionParser:
         self._sec_type = SectionType()
         try:
             self._data = self._parse_line()
-        except core.SectionDeclarationError as sde:
+        except SectionDeclarationError as sde:
             print(sde)
             self._data = None
 
@@ -198,8 +193,8 @@ class SectionParser:
             # There should be at least 2 elements. Any less represents an error
 
             if sec is None:
-                raise core.SectionDeclarationError("Invalid Section format.",
-                                                    line_text=line)
+                raise SectionDeclarationError("Invalid Section format.",\
+                    line_text=line)
             # ['"sectionName"', "ROMX", "BANK[3]"]
             result['name'] = sec['name']
             # Get the symbols. There needs to be at least one.
@@ -210,8 +205,8 @@ class SectionParser:
                 sym_dict = {"symbol":'', 'param':''}
                 sym = args[idx].split('[')
                 if not self._sec_type.is_valid_sectiontype(sym[0]):
-                    raise core.SectionTypeError(f"The section type '{sym[0]}' "\
-                                                "is not a valid section type.")
+                    raise SectionTypeError(f"The section type '{sym[0]}' "\
+                        "is not a valid section type.")
                 sym_dict["symbol"] = sym[0]
                 if len(sym) > 1: # Will be something line "$4000]"
                     sym_dict['param'] = sym[1].strip("]")
@@ -240,12 +235,12 @@ class SectionParser:
         This is just an example. In either case, 'param' can be blank.
         """
         if len(section_info) < 1:
-            raise core.SectionDeclarationError("No section data.")
+            raise SectionDeclarationError("No section data.")
 
         sym = section_info[0]
         start_address, end_address =(
             self._sec_type.sectiontype_info(sym['symbol']))['addr']
-        return core.SectionAddress(start=start_address, end=end_address)
+        return SectionAddress(start=start_address, end=end_address)
 
 
 if __name__ == "__main__":

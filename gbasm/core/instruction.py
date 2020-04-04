@@ -1,19 +1,10 @@
 """
 Class(es) that implements a Z80/LR35902 instruction and Instruction Set
 """
-import imp
-try:
-    imp.find_module('gbasm_dev')
-    from gbasm_dev import set_gbasm_path
-    set_gbasm_path()
-except ImportError:
-    pass
+from .lexer_results import LexerResults, LexerTokens
+from .lexer_parser import InstructionParser, BasicLexer
 
-from gbasm.instruction.lexer_parser import LexerResults, InstructionParser
-from gbasm.basic_lexer import BasicLexer
-
-
-class Instruction:
+class Instruction(object):
     """ Encapsulates an individual Z80 instruction """
 
     def __init__(self, node: dict):
@@ -126,55 +117,55 @@ class Instruction:
 
 ###############################################################################
 
-if __name__ == "__main__":
-    ins = Instruction.from_string("JR .RELATIVE")
-    print(ins)
+# if __name__ == "__main__":
+#     ins = Instruction.from_string("LD a, ($ff00)")
+#     print(ins)
 
-    ins = Instruction.from_string("LD HL, SP+$17")
-    print(ins)
+#     ins = Instruction.from_string("JR .RELATIVE")
+#     print(ins)
 
-    ins = Instruction.from_string("JP NZ, $0010")
-    print(ins)
+#     ins = Instruction.from_string("LD HL, SP+$17")
+#     print(ins)
 
-    ins = Instruction.from_string("LD a, ($ff00)")
-    print(ins)
+#     ins = Instruction.from_string("JP NZ, $0010")
+#     print(ins)
 
-    ins = Instruction.from_string("LD ($ff00), a")
-    print(ins)
+#     ins = Instruction.from_string("LD ($ff00), a")
+#     print(ins)
 
-    ins = Instruction.from_string("RrCa")
-    print(ins)
+#     ins = Instruction.from_string("RrCa")
+#     print(ins)
 
-    ins = Instruction.from_string("Add HL, SP")
-    print(ins)
+#     ins = Instruction.from_string("Add HL, SP")
+#     print(ins)
 
-    ins = Instruction.from_string("LD A, (HL-)")
-    print(ins)
+#     ins = Instruction.from_string("LD A, (HL-)")
+#     print(ins)
 
-    ins = Instruction.from_string("ADD SP, $25")
-    print(ins)
+#     ins = Instruction.from_string("ADD SP, $25")
+#     print(ins)
 
-    ins = Instruction.from_string("LD b, c")
-    print(ins)
+#     ins = Instruction.from_string("LD b, c")
+#     print(ins)
 
-    ins = Instruction.from_string("Nop")
-    print(ins)
+#     ins = Instruction.from_string("Nop")
+#     print(ins)
 
-    ins = Instruction.from_string("JP (HL)")
-    print(ins)
+#     ins = Instruction.from_string("JP (HL)")
+#     print(ins)
 
-    ins = Instruction.from_string("LD A, ($aabb)")
-    print(ins)
+#     ins = Instruction.from_string("LD A, ($aabb)")
+#     print(ins)
 
-    ins = Instruction.from_string("SET 3, (HL)")
-    print(ins)
+#     ins = Instruction.from_string("SET 3, (HL)")
+#     print(ins)
 
-    ins = Instruction.from_string("XOR $ff")
-    print(ins)
+#     ins = Instruction.from_string("XOR $ff")
+#     print(ins)
 
-    # Failures
-    ins = Instruction.from_string("JR .RELATIVE")
-    print(ins)
+#     # Failures
+#     ins = Instruction.from_string("JR .RELATIVE")
+#     print(ins)
 
-    ins = Instruction.from_string("NOP A")
-    print(ins)
+#     ins = Instruction.from_string("NOP A")
+#     print(ins)

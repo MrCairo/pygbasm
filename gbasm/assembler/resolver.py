@@ -6,10 +6,10 @@ original state.
 import operator
 from singleton_decorator import singleton
 
-import gbasm.core as core
-
-EC = core.ExpressionConversion
-IP = core.InstructionPointer
+from ..core.lexer_results import LexerTokens, LexerResults
+from ..core.conversions import ExpressionConversion as EC
+from ..core.instruction_pointer import InstructionPointer as IP
+from ..core.instruction import Instruction
 
 @singleton
 class Resolver():
@@ -17,8 +17,8 @@ class Resolver():
     _jump_table = None
 
     def resolve_instruction(self,
-                            instruction: core.Instruction,
-                            current_address: int) -> core.Instruction:
+                            instruction: Instruction,
+                            current_address: int) -> Instruction:
         """
         Attempts top resolve instructions that failed initial resolution
         which can be due to the presence of a label. Only the instructions
@@ -38,7 +38,7 @@ class Resolver():
             }
         if current_address < 0 or current_address > 65535:
             return instruction
-        lex: core.LexerResults = instruction.parse_result()
+        lex: LexerResults = instruction.parse_result()
         if lex and lex.mnemonic_error() is None:
             base = lex.mnemonic()
             if base not in self._jump_table:
@@ -80,19 +80,19 @@ def format_with_parens(val: str, parens: bool):
         return f"({val})"
     return val
 
-def op_add(lex: core.LexerResults) -> core.Instruction:
+def op_add(lex: LexerResults) -> core.Instruction:
     """ Process ADD instructions """
     return None
 
-def op_call(lex: core.LexerResults) -> core.Instruction:
+def op_call(lex: LexerResults) -> core.Instruction:
     """ Process CALL instructions """
     return None
 
-def op_jp(lex: core.LexerResults) -> core.Instruction:
+def op_jp(lex: LexerResults) -> core.Instruction:
     """ Process JP instructions """
     return None
 
-def op_jr(lex: core.LexerResults) -> core.Instruction:
+def op_jr(lex: LexerResults) -> core.Instruction:
     """ Process the JR instruction """
     args = []
     clean_label = None
@@ -166,7 +166,7 @@ def op_jr(lex: core.LexerResults) -> core.Instruction:
     ins.labels = [clean_label]
     return ins
 
-def op_ld(lex: core.LexerResults) -> core.Instruction:
+def op_ld(lex: LexerResults) -> core.Instruction:
     args: list = []
     clean_labels = []
     if lex.operand1() is None or lex.operand2() is None:
@@ -215,7 +215,7 @@ def op_ld(lex: core.LexerResults) -> core.Instruction:
     return ins
 
 
-def op_ldh(lex: core.LexerResults) -> core.Instruction:
+def op_ldh(lex: LexerResults) -> core.Instruction:
     return None
 
 def compute_relative(curr, base) -> int:

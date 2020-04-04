@@ -5,10 +5,9 @@ import os, io, json
 from decimal import Decimal
 from singleton_decorator import singleton
 
-import gbasm.core.instruction as ins
 from .lr35902_data import LR35902Data
 from .registers import Registers
-from .. import ExpressionConversion
+from .conversions import ExpressionConversion
 
 #
 # Special internal functions.
