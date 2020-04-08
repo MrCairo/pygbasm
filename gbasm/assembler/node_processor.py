@@ -14,6 +14,7 @@ from ..core import ErrorCode, Error, Instruction, ParserException
 from ..core import is_compound_node, is_node_valid
 from ..core import NodeType
 from .code_node import CodeNode, CodeOffset
+from .resolver import Resolver
 
 EC = ExpressionConversion
 IS = InstructionSet
@@ -66,7 +67,7 @@ class NodeProcessor(object):
         # valid.
         offset = IP().offset_from_base()
         if ins.parse_result().mnemonic_error() is None:
-            ins2 = asm.Resolver().resolve_instruction(ins, IP().location)
+            ins2 = Resolver().resolve_instruction(ins, IP().location)
             if ins2 and ins2.is_valid():
                 IP().move_relative(len(ins2.machine_code()))
                 return CodeNode(NodeType.INST, ins2, offset)
