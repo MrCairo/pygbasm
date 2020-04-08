@@ -11,6 +11,7 @@ from ..core.conversions import ExpressionConversion as EC
 from ..core.instruction_pointer import InstructionPointer as IP
 from ..core.instruction import Instruction
 from ..core.label import Label, Labels, LabelScope, LabelUtils
+from ..core.registers import Registers
 
 @singleton
 class Resolver():
@@ -179,7 +180,7 @@ def op_ld(lex: LexerResults) -> Instruction:
         paren1 = len(clean1) < len(lex.operand1())
         label = maybe_label(clean1)
         if label is None:
-            if core.Registers().is_valid_register(clean1) is False:
+            if Registers().is_valid_register(clean1) is False:
                 return None
         clean_labels.append(label)
         val = EC().expression_from_value(label.value(), "$")
@@ -200,7 +201,7 @@ def op_ld(lex: LexerResults) -> Instruction:
                 # If not a number, is this a valid register?
                 # We test this here since if operand1 is in error, operand2
                 # (if it exists) will also be in error.
-                if core.Registers().is_valid_register(clean2) is False:
+                if Registers().is_valid_register(clean2) is False:
                     return None
                 args.append(format_with_parens(clean2, paren2))
         else:
