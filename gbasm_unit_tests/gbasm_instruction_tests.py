@@ -3,7 +3,18 @@ import os
 import sys
 import string
 import inflect
+import imp
 
+try:
+    imp.find_module('gbasm_dev')
+    from gbasm_dev import set_gbasm_path
+    set_gbasm_path()
+except ImportError:
+    pass
+
+from gbasm import BufferReader
+from gbasm import InstructionSet, Instruction, InstructionPointer
+# from gbasm.instruction import Instruction, InstructionPointer, InstructionSet
 ###############################################################################
 ## Adds the develop gbasm package to the path. Pythonista tries to optimize
 ## anything in the Python Modules directories. Because of this, cached
@@ -15,12 +26,21 @@ import inflect
 ## tl;dr This code adds the develop version of gbasm to the Python module
 ## search path.
 ###############################################################################
-from gbasm import Parser, ParserException, Instruction, InstructionPointer,\
-                  InstructionSet, Constant
-from gbasm.reader import Reader, FileReader, BufferReader
+
+# from gbasm.reader import BufferReader, FileReader, Reader
+# from gbasm.section import Section
+# from gbasm.storage import Storage
+# from gbasm.exception import ParserException, Error, ErrorCode
+# from gbasm.equate import Equate
+# from gbasm.resolver import Resolver
+# from gbasm.label import Label, Labels
+# from gbasm.conversions import ExpressionConversion
+# from gbasm.basic_lexer import BasicLexer, is_compound_node, is_node_valid
+# from gbasm.constants import NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC
+# from gbasm.node_processor import CodeNode, NodeProcessor
 
 pynum = inflect.engine()
-ins_set = InstructionSet()
+IS = InstructionSet
 
 ld_instr = """
 	ld   b,b
@@ -108,7 +128,7 @@ class TestInstructionAssembler (unittest.TestCase):
                 if line:
                     ins = Instruction(line)
                     res = ins.machine_code
-                    self.assertTrue(res, f"Unknown instruction: {ins.instruction}")
+                    self.assertTrue(res, f"Unknown mnemonic: {ins.mnemonic}")
 
 
     def test_compile_ins_with_address(self):

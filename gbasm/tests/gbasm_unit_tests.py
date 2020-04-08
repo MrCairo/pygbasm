@@ -15,7 +15,7 @@ except ImportError:
     pass
 
 from gbasm.core import InstructionSet, BufferReader, Section, ParserException,\
-    StorageType, Storage
+    StorageType, Storage, Label, Labels, LabelUtils, LabelScope
 
 
 class GbasmUnitTests(unittest.TestCase):
@@ -83,10 +83,33 @@ class GbasmUnitTests(unittest.TestCase):
             f"Expected storage to be {expected_len} bytes.")
 #        print(dds)
 
+class GbasmLabelTests(unittest.TestCase):
+    ############################################################################
+    # Label tests.
+    def test_label_can_initialize(self):
+        lbl = Label(".ThisIsALabel", 0x1000)
+        self.assertTrue(lbl.value() == 0x1000, \
+            "The expected value was 0x1000 but wasn't")
+
+    def test_label_set_to_local_scope(self):
+        lbl = Label(".ThisIsALabel:", 0xff)
+        self.assertTrue(lbl.is_scope_global() is False,\
+            "The label was expected to be local, not global in score.")
+
+    def test_label_can_set_to_global_scope(self):
+        lbl = Label(".ThisIsALabel::", 0xff)
+        self.assertTrue(lbl.is_scope_global() is True,\
+            "The label was expected to be global, not local in score.")
+
+
+
 if __name__ == "__main__":
     print("\nTesting Parser methods")
     suite = unittest.TestLoader().loadTestsFromTestCase(GbasmUnitTests)
     unittest.TextTestRunner(verbosity=2).run(suite)
+    suite = unittest.TestLoader().loadTestsFromTestCase(GbasmLabelTests)
+    unittest.TextTestRunner(verbosity=2).run(suite)
+
 
 #    all_ins = InstructionSet.instance().instructions()
 #    for ins in all_ins:

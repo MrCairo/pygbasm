@@ -10,6 +10,7 @@ from ..core.lexer_results import LexerTokens, LexerResults
 from ..core.conversions import ExpressionConversion as EC
 from ..core.instruction_pointer import InstructionPointer as IP
 from ..core.instruction import Instruction
+from ..core.label import Label, Labels, LabelScope, LabelUtils
 
 @singleton
 class Resolver():
@@ -66,13 +67,13 @@ These functions handle each opcode. A jump table defined in the
 opcode_handler function contains the table to jump to each function
 based upon the starting mneumonic.
 """
-def maybe_label(text: str) -> core.Label:
+def maybe_label(text: str) -> Label:
     """
     Returns the Label object is the text string is the key to a Label
     object, otherwise None.
     """
     maybe = text.strip()
-    label: core.Label = core.Labels()[maybe]
+    label: Label = Labels()[maybe]
     return None if label is None else label
 
 def format_with_parens(val: str, parens: bool):
@@ -80,19 +81,19 @@ def format_with_parens(val: str, parens: bool):
         return f"({val})"
     return val
 
-def op_add(lex: LexerResults) -> core.Instruction:
+def op_add(lex: LexerResults) -> Instruction:
     """ Process ADD instructions """
     return None
 
-def op_call(lex: LexerResults) -> core.Instruction:
+def op_call(lex: LexerResults) -> Instruction:
     """ Process CALL instructions """
     return None
 
-def op_jp(lex: LexerResults) -> core.Instruction:
+def op_jp(lex: LexerResults) -> Instruction:
     """ Process JP instructions """
     return None
 
-def op_jr(lex: LexerResults) -> core.Instruction:
+def op_jr(lex: LexerResults) -> Instruction:
     """ Process the JR instruction """
     args = []
     clean_label = None
@@ -159,14 +160,14 @@ def op_jr(lex: LexerResults) -> core.Instruction:
             else:
                 return None
     if len(args) == 2:
-        ins = core.Instruction.from_string(f"JR {args[0]}, {args[1]}")
+        ins = Instruction.from_string(f"JR {args[0]}, {args[1]}")
         ins.labels = [clean_label]
         return ins
-    ins = core.Instruction.from_string(f"JR {args[0]}")
+    ins = Instruction.from_string(f"JR {args[0]}")
     ins.labels = [clean_label]
     return ins
 
-def op_ld(lex: LexerResults) -> core.Instruction:
+def op_ld(lex: LexerResults) -> Instruction:
     args: list = []
     clean_labels = []
     if lex.operand1() is None or lex.operand2() is None:
@@ -210,12 +211,12 @@ def op_ld(lex: LexerResults) -> core.Instruction:
         args.append(lex.operand2())
 
     text = f"LD {args[0]}, {args[1]}"
-    ins = core.Instruction.from_string(text)
+    ins = Instruction.from_string(text)
     ins.labels = clean_labels
     return ins
 
 
-def op_ldh(lex: LexerResults) -> core.Instruction:
+def op_ldh(lex: LexerResults) -> Instruction:
     return None
 
 def compute_relative(curr, base) -> int:
