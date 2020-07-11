@@ -5,6 +5,7 @@ import string
 import collections
 
 os.environ['PYGBASM_HOME'] = os.path.dirname(os.path.realpath(__file__ + "/../.."))
+print(sys.path)
 import imp
 try:
     imp.find_module('gbasm_dev')
@@ -16,6 +17,10 @@ except ImportError:
 
 from gbasm.core import InstructionSet, BufferReader, Section, ParserException,\
     StorageType, Storage, Label, Labels, LabelUtils, LabelScope
+from gbasm.core import BasicLexer, LexerResults, LexerTokens, LexicalAnalyzer
+from gbasm.core import TOK, DIR, LBL, EQU, INST, SEC, STOR, MULT
+from gbasm.assembler import CodeNode, CodeOffset, NodeProcessor, NodeType,\
+    CodeNode, CodeOffset
 
 
 class GbasmUnitTests(unittest.TestCase):
@@ -30,9 +35,8 @@ class GbasmUnitTests(unittest.TestCase):
         self.assertTrue(sec.is_valid(), "Section should have parsed correctly but didn't")
         self.assertTrue(sec.name() == "ONETYPE", "Section should have parsed correctly but didn't")
 
-
     def test_sectionParsesSectioName (self):
-        test_buffer = """SECTION "MySectionName", ROMX[$4000], BANK[3], ALIGN[4]"""
+        test_buffer = """SECTION "MySectionName", ROMX[$4000], BANK[$3], ALIGN[4]"""
         sec = Section.from_string(test_buffer)
         self.assertTrue(sec.is_valid(), "Section should have parsed correctly but didn't")
         self.assertTrue(sec.name() == "MYSECTIONNAME", "The section name was not equal to 'MYSECTIONNAME'")
@@ -102,14 +106,77 @@ class GbasmLabelTests(unittest.TestCase):
             "The label was expected to be global, not local in score.")
 
 
+class GbasmCompileTests(unittest.TestCase):
+    def test_section_IP_init(self):
+        sec = Section.from_string("SECTION 'game_stuff', ROMX, BANK[$1]")
+        self.assertTrue(sec.is_valid(), \
+            "Unable to parse \"SECTION 'game_stuff', ROMX, BANK[$1]")
+
+    def test_lexical_analyzer_with_string(self):
+        line = "SECTION 'game_stuff', ROM0   ; Initial section"
+        node = LexicalAnalyzer().analyze_string(line)
+        self.assertTrue(node.directive() == SEC, \
+            "analyze_string() returned unexpected results.")
+
+    def test_lexical_analyzer_with_buffer(self):
+        code1 = """
+        SECTION 'game_stuff', ROM0   ; Initial section
+        blahblahblah testing 123
+        CLOUDX DB $FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00
+        MAXVAL EQU 65535
+        .start:
+          LD HL, $ffd2
+          LD A,(HL+)
+          DB $0A, $0B, $0C
+          JR .end
+          LD HL, SP+$45
+          LD SP, $ffd2
+        .end
+          LD A, (HL-)
+        """
+        reader = BufferReader(code1)
+        nodes = LexicalAnalyzer().analyze_buffer(reader)
+        print("\n")
+        print(nodes)
+
+    def test_lexer_tokenize(self):
+        code1 = """
+        SECTION 'game_stuff', ROM0   ; Initial section
+        CLOUDX DB $FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00
+        MAXVAL EQU 65535
+        .start:
+          LD HL, $ffd2
+          LD A,(HL+)
+          DB $0A, $0B, $0C
+          JR .end
+          LD HL, SP+$45
+          LD SP, $ffd2
+        .end
+          LD A, (HL-)
+          blahblahblah testing 123
+        """
+        # binary should look like:
+        # 0000000 ff 00 ff 00 ff 00 ff 00 ff 00 ff 00 ff 00 ff 00
+        # 0000010 21 d2 ff 2a 0a 0b 0c f8 45 31 d2 ff 18 f2 3a 00
+        # 0000020 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+        # np = NodeProcessor(BufferReader(""))
+        # lex = BasicLexer.from_string(code1)
+        # lex.tokenize()
+        # for item in lex.tokenized_list():
+        #     nodes = np.process_node(item)
+        #     for n in nodes:
+        #         print(n)
+
 
 if __name__ == "__main__":
     print("\nTesting Parser methods")
-    suite = unittest.TestLoader().loadTestsFromTestCase(GbasmUnitTests)
+    # suite = unittest.TestLoader().loadTestsFromTestCase(GbasmUnitTests)
+    # unittest.TextTestRunner(verbosity=2).run(suite)
+    # suite = unittest.TestLoader().loadTestsFromTestCase(GbasmLabelTests)
+    # unittest.TextTestRunner(verbosity=2).run(suite)
+    suite = unittest.TestLoader().loadTestsFromTestCase(GbasmCompileTests)
     unittest.TextTestRunner(verbosity=2).run(suite)
-    suite = unittest.TestLoader().loadTestsFromTestCase(GbasmLabelTests)
-    unittest.TextTestRunner(verbosity=2).run(suite)
-
 
 #    all_ins = InstructionSet.instance().instructions()
 #    for ins in all_ins:

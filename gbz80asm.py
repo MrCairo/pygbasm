@@ -13,6 +13,8 @@ except ImportError:
     pass
 
 from gbasm.assembler import Assembler
+from gbasm.core import Label, Labels
+
 
 asm = """
 ***************
@@ -54,9 +56,25 @@ continue_update_1:
     resolved from a label, that the label or constant is included in the object
     for reference. This will be necessary (possibly) during linking.
 """
-assembler = Assembler()
-assembler.load_from_buffer(asm)
-assembler.parse()
+asm2 = """
+SECTION 'game_stuff', ROM0   ; Initial section
+CLOUDX DB $FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00
+MAXVAL EQU 65535
+.start:
+    LD HL, $ffd2
+    LD A,(HL+)
+    DB $0A, $0B, $0C
+    JR .end
+    LD HL, SP+$45
+    LD SP, $ffd2
+.end
+    LD A, (HL-)
+"""
+#assembler = Assembler()
+#assembler.load_from_buffer(asm2)
+#assembler.parse()
+
+#d = Labels().local_labels()
 
 #for item in _instructions:
 #    print(item)

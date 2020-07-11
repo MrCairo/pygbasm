@@ -295,6 +295,14 @@ class Labels(dict):
                 self._labels = new_d
         return
 
+    def local_labels(self) -> dict:
+        d = {k:v for k, v in self.items() if v.is_scope_global is False}
+        return d
+
+    def global_labels(self) -> dict:
+        d = {k:v for k, v in self.items() if v.is_scope_global}
+        return d
+
     def items(self) -> dict:
         """
         Returns the dictionary of Label objects.

@@ -1,7 +1,7 @@
 """
 Commonly used constants
 """
-from enum import Enum
+from enum import Enum, IntEnum
 
 DIR = "directive"
 TOK = "tokens"
@@ -13,6 +13,7 @@ LBL = "LABEL"
 INST = "INSTRUCTION"
 STOR = "STORAGE"
 SEC = "SECTION"
+BAD = "INVALID"
 
 class NodeType(Enum):
     NODE = 1
@@ -38,4 +39,10 @@ DIRECTIVES = [
     "PURGE", "INCBIN", "UNION", "NEXTU", "ENDU"
 ]
 
-STORAGE_DIR = ["DS", "DB", "DW", "DL"]
+STORAGE_DIRECTIVES = ["DS", "DB", "DW", "DL"]
+
+class Lexical(IntEnum):
+    warning = 1
+    syntax_error = 2
+    unknown_error
+

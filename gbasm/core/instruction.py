@@ -13,7 +13,6 @@ class Instruction(object):
         self._node = node
         self._lex_results: LexerResults = ip.result()
         self._placeholder_string = None
-        self.labels = []
 
     @classmethod
     def from_string(cls, text: str):
@@ -53,13 +52,6 @@ class Instruction(object):
                 unresolved = True
                 # desc += "Unresolved = " + self._lex_results.unresolved()
                 # desc += "\n"
-        if len(self.labels):
-            desc += " ("
-            for label in self.labels:
-                desc += label.name()
-                desc += ") "
-                desc += "" if not unresolved else " [unresolved] "
-        desc += "\n"
         return desc
 
     def __repr__(self):

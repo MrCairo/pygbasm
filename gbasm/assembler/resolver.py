@@ -99,9 +99,11 @@ def op_jr(lex: LexerResults) -> Instruction:
     args = []
     clean_label = None
     # Must be at least one operand.
+    loc = IP().offset_from_base()
+    curr = IP().location
+    curr += 2
     if lex.operand1 is None:
         return None
-
     clean1 = lex.operand1().strip("()")
     paren1 = len(clean1) < len(lex.operand1())
     clean2 = None
@@ -112,11 +114,14 @@ def op_jr(lex: LexerResults) -> Instruction:
     if lex.operand1_error():
         label = maybe_label(clean1)
         if label is None:
+            tmp = Instruction.from_string("JR $00")
+            tmp.is_valid = False
             return None
         clean_label = label
         print(f"RESOLVE JR compute relative IP = {hex(IP().location)}")
         print(f"from = {hex(label.value())}")
-        rel = compute_relative(IP().location, label.value())
+        base = label.value()
+        rel = compute_relative(curr, base)
         print(f"Relative value is {rel}")
         rel = EC().expression_from_value(rel, "$")
         args.append(format_with_parens(rel, paren1))

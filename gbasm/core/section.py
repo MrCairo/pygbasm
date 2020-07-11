@@ -7,6 +7,8 @@ Implementation of a Section
 #
 import string
 from collections import namedtuple
+
+from .conversions import ExpressionConversion as EC
 from .constants import EQU, LBL, STOR, INST, SEC
 from .exception import SectionDeclarationError, SectionTypeError
 from .lexer_parser import BasicLexer
@@ -209,7 +211,9 @@ class SectionParser:
                         "is not a valid section type.")
                 sym_dict["symbol"] = sym[0]
                 if len(sym) > 1: # Will be something line "$4000]"
-                    sym_dict['param'] = sym[1].strip("]")
+                    exp = sym[1].strip("]")
+                    val = EC().value_from_expression(exp)
+                    sym_dict['param'] = exp if val is None else val
                 symbols.append(sym_dict)
             result['args'] = symbols
             result['address_range'] = self._compute_address(symbols)
