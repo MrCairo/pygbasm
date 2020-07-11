@@ -1,7 +1,7 @@
 #
 #
 from typing import NewType
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto
 
 class ParserException(Exception):
     """Base class of exceptions for the parser."""
@@ -36,7 +36,7 @@ class SectionTypeError(ParserException):
         super().__init__(message, line_text, line_number)
 
 
-class ErrorCode(Enum):
+class ErrorCode(IntEnum):
     """Instruction error codes."""
     INVALID_MNEMONIC = auto()
     INCOMPLETE_INSTRUCTION = auto()
@@ -49,12 +49,13 @@ class ErrorCode(Enum):
     INVALID_REGISTER_POSITION = auto()
     INVALID_SECTION_POSITION = auto()
     INVALID_DECLARATION = auto()
-
+    INVALID_SYNTAX = auto()
+    # Eventually have Warnings here as well?
 
 
 ####################################################################################################
 
-class Error():
+class Error:
     """Represents an Error object used in Instruction related operations."""
     __messages = {
         ErrorCode.INVALID_MNEMONIC:
@@ -90,13 +91,15 @@ class Error():
 
         ErrorCode.INVALID_DECLARATION:
         """The declaration was not a know keyword or instruction or appears
-        with invalid characters or spacing.
-        """
+        with invalid characters or spacing.""",
+
+        ErrorCode.INVALID_SYNTAX:
+        """The syntax of line cannot be determined."""
     }
 
     def __init__(self, error_code: int, supplimental: str = "",
                  source_file: str = None, source_line: int = None):
-        self._code = error_code
+        self._code: ErrorCode = error_code
         self._supplimental = supplimental
         self._file = source_file
         self._line = source_line
@@ -114,7 +117,7 @@ class Error():
         return message
 
     @property
-    def code(self) -> int:
+    def code(self) -> ErrorCode:
         """ Returns the error code passed when creating this Error object."""
         return self._code
 

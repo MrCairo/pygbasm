@@ -122,7 +122,7 @@ class ExpressionConversion():
         Convert a hexidecimal number ($12, $1234) into a decimal value
         """
         hexi = "0123456789ABCDEF"
-        if not self._validate_expression(val, '$', 2, 10, hexi):
+        if not self._validate_expression(val, '$', 1, 10, hexi):
             return None
 
         return int(val[1:], 16)

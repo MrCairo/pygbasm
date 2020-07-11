@@ -12,18 +12,6 @@ from ..core import NODE, INST, is_node_valid, is_compound_node
 from .code_node import CodeNode, CodeOffset, ReferenceType
 from .node_processor import NodeProcessor
 
-# from gbasm.reader import BufferReader, FileReader, Reader
-# from gbasm.section import Section
-# from gbasm.storage import Storage
-# from gbasm.exception import ParserException, Error, ErrorCode
-# from gbasm.equate import Equate
-# from gbasm.instruction import Instruction, InstructionPointer, InstructionSet
-# from gbasm.resolver import Resolver
-# from gbasm.label import Label, Labels
-# from gbasm.conversions import ExpressionConversion
-# from gbasm.basic_lexer import BasicLexer, is_compound_node, is_node_valid
-# from gbasm.constants import NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC
-# from gbasm.node_processor import CodeNode, NodeProcessor
 
 class Action(IntEnum):
     """The current state of the parser state machine."""
@@ -118,6 +106,7 @@ class Assembler:
         file. Otherwise, it's possibly a global label or an error.
         """
         new_code: [CodeNode] = []
+        IP().base_address = 0x0000
         for (_, code_node) in enumerate(self.code):
             type_name = code_node.type_name
             code = code_node.code_obj
@@ -128,6 +117,7 @@ class Assembler:
                 if new_nodes:
                     new_code.extend(new_nodes)
             else:
+                IP().move_relative(code_node.offset)
                 new_code.append(code_node)
         self.code.clear()
         self.code = new_code

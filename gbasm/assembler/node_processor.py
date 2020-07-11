@@ -24,7 +24,6 @@ class NodeProcessor(object):
     def __init__(self, reader: Reader):
         self._reader = reader
         self._line_no = 0
-        self._lexer = BasicLexer(reader)
         self._code: [CodeNode] = []
         self._bad: [dict] = []
         self._sections: [Section] = []
@@ -59,8 +58,9 @@ class NodeProcessor(object):
         ins = Instruction(node)
         if ins.parse_result().is_valid():
             offset = IP().offset_from_base()
-            IP().move_relative(len(ins.machine_code()))
-            return CodeNode(NodeType.INST, ins, offset)
+            length = len(ins.machine_code())
+            IP().move_relative(length)
+            return CodeNode(NodeType.INST, ins, offset, length=length)
         # Instruction is not valid. This could mean either it really is
         # invalid (typo, wrong argument, etc) or that it has a label. To
         # get started, just check to make sure the mnemonic is at least
@@ -118,6 +118,7 @@ class NodeProcessor(object):
         sto = Storage(node)
         # print(f"Processing Storage type {sto.storage_type()}")
         # print(f"Storage len = {len(sto)}")
+        IP().move_relative(len(sto))
         return CodeNode(NodeType.STOR, sto, offset)
 
     def process_node(self, node: dict) -> [CodeNode]:
@@ -163,7 +164,12 @@ class NodeProcessor(object):
             if ins:
                 nodes.append(ins)
             else:
-                nodes.append(CodeNode(NodeType.NODE, node, IP().offset_from_base()))
+                nodes.append(CodeNode(NodeType.NODE, node,
+                                      IP().offset_from_base()))
+        elif node[DIR] == STOR:
+            sto = self.process_STORAGE(node)
+            if sto:
+                nodes.append(sto)
         return nodes
 
     def process_compound_node(self, node: dict) -> [CodeNode]:
@@ -199,8 +205,7 @@ class NodeProcessor(object):
         elif tok_list[1][DIR] == STOR:
             storage = self.process_STORAGE(tok_list[1])
             if storage:
-
-                IP().move_location_relative(len(storage.code_obj))
+                # IP().move_location_relative(len(storage.code_obj))
                 nodes.append(storage)
                 return nodes
         else:

@@ -1,13 +1,16 @@
 
 from .reader import Reader, BufferReader, FileReader
 from .conversions import ExpressionConversion
-from .constants import NodeType, NODE_TYPES, DIRECTIVES, STORAGE_DIR
+from .constants import NodeType, NODE_TYPES, DIRECTIVES, STORAGE_DIRECTIVES
 from .constants import NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC, MULT, EXT
 from .label import Label, Labels, LabelUtils, LabelScope
 from .equate import Equate
 
 from .lexer_parser import LexerResults, LexerTokens, InstructionParser,\
     BasicLexer, is_compound_node, is_node_valid, tokenize_line
+
+from .lexical_node import LexicalNode
+from .lexical_analyzer import LexicalAnalyzer
 
 from .exception import ParserException, DefineDataError
 from .exception import SectionDeclarationError, SectionTypeError
@@ -26,7 +29,7 @@ from .instruction_pointer import InstructionPointer
 __all__ = [
     "Reader", "BufferReader", "FileReader", "ExpressionConversion",
     "NODE", "DIR", "TOK", "EQU", "LBL", "INST", "STOR", "SEC", "MULT", "EXT",
-    "NodeType", "NODE_TYPES", "DIRECTIVES", "STORAGE_DIR",
+    "NodeType", "NODE_TYPES", "DIRECTIVES", "STORAGE_DIRECTIVES",
     "Equate", "ParserException", "DefineDataError", "ErrorCode", "Error",
     "BasicLexer", "is_compound_node", "is_node_valid", "tokenize_line",
     "LexerResults", "LexerTokens", "InstructionParser",

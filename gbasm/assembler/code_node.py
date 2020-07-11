@@ -48,17 +48,20 @@ class CodeNode(object):
         offset: A CodeOffset object representing the offset of
                 of this object relative to something else
                 (see CodeOffset obejct).
+        length: Optional value that represents the length in bytes
+                of the code_obj.
     """
-    def __init__(self, type, code_obj, offset:CodeOffset):
+    def __init__(self, type, code_obj, offset:CodeOffset, length=None):
         self.type = type
         self.code_obj = code_obj
         self.offset = offset
+        self.length = length
 
     def __str__(self):
         desc  = "\n"
         desc += f"CodeNode: {self.type_name}:\n"
         desc += f"   {self.code_obj.__str__()}\n"
-        desc += f"   Offset: {self.offset.__str__()}\n"
+        desc += f"   Offset: {hex(self.offset).__str__()}\n"
         return desc
 
     @property
