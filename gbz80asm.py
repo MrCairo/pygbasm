@@ -3,7 +3,7 @@ Z80 Assembler
 """
 import imp
 import os
-os.environ['PYGBASM_HOME'] = os.path.dirname(os.path.realpath(__file__ + "/.."))
+os.environ['PYGBASM_HOME'] = os.path.dirname(os.path.realpath(__file__))
 
 try:
     imp.find_module('gbasm_dev')
@@ -12,14 +12,9 @@ try:
 except ImportError:
     pass
 
-from gbasm.assembler import Assembler
-from gbasm.core import Label, Labels
-
+from gbasm import Assembler
 
 asm = """
-***************
-* Program Start
-***************
 SECTION "CoolStuff",WRAM0
 CLOUDS_X: DB $FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00
 BUILDINGS_X: DS 1
@@ -34,53 +29,39 @@ START_PLAY:: DS 1
 IMAGES    EQU $10
 BIGVAL    EQU 65500
 
-; SECTION "game", ROMX
+SECTION "game", ROMX
 
-update_game:
+.update_game:
     ld A, (HL)
-    jr nz, .update_game ; should be 0x20 fd
+    jr nz, .update_game
     ld HL, BIGVAL   ; should be 0x21 dc ff
     ld HL, SP+$55   ; should be 0xf8 55
-    ; ldhl sp, $6a    ; should be 0xf8 6a
-    jr continue_update_1 ; should be 0x18 04
+    ldhl sp, $6a    ; should be 0xf8 6a
+    jr .continue_update_1
     ld A, (HL)
     XOR D
     CP H
     CP L
-continue_update_1:
+.continue_update_1:
     CP A
 """
+
 """
 09/18/2019:
     Need to update the Instruction class (maybe) so that if any part of it is
     resolved from a label, that the label or constant is included in the object
     for reference. This will be necessary (possibly) during linking.
 """
-asm2 = """
-SECTION 'game_stuff', ROM0   ; Initial section
-CLOUDX DB $FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00
-MAXVAL EQU 65535
-.start:
-    LD HL, $ffd2
-    LD A,(HL+)
-    DB $0A, $0B, $0C
-    JR .end
-    LD HL, SP+$45
-    LD SP, $ffd2
-.end
-    LD A, (HL-)
-"""
-#assembler = Assembler()
-#assembler.load_from_buffer(asm2)
-#assembler.parse()
+assembler = Assembler()
+assembler.load_from_buffer(asm)
+assembler.parse()
 
-#d = Labels().local_labels()
+    #for item in _instructions:
+    #    print(item)
 
-#for item in _instructions:
-#    print(item)
+    # print(f"Equates: {p.equates}")
+    # print("--- BEGIN LABELS DUMP ---")
+    # for item in Labels().items():
+    #    print(item)
+    # print("---- END LABELS DUMP ----")
 
-# print(f"Equates: {p.equates}")
-# print("--- BEGIN LABELS DUMP ---")
-# for item in Labels().items():
-#    print(item)
-# print("---- END LABELS DUMP ----")
