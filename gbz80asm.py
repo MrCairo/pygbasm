@@ -1,18 +1,17 @@
 """
 Z80 Assembler
 """
-import imp
 import os
-os.environ['PYGBASM_HOME'] = os.path.dirname(os.path.realpath(__file__))
+os.environ['DMGASM_ROOT'] = os.path.dirname(os.path.realpath(__file__))
 
-try:
-    imp.find_module('gbasm_dev')
-    from gbasm_dev import set_gbasm_path
-    set_gbasm_path()
-except ImportError:
-    pass
+# try:
+#     imp.find_module('gbasm_dev')
+#     from gbasm_dev import set_gbasm_path
+#     set_gbasm_path()
+# except ImportError:
+#     pass
 
-from gbasm import Assembler
+from dmgasm import Assembler
 
 asm = """
 SECTION "CoolStuff",WRAM0
