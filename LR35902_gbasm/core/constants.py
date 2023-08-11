@@ -6,31 +6,34 @@ from enum import Enum, IntEnum, auto
 from dataclasses import dataclass
 from collections import namedtuple
 
-DIR = "directive"
-ORG = "origin"
-TOK = "tokens"
-EXT = "extra"
-NODE = "node"  # Rpresents an internal tokenized node.
-DEF = "DEFINE"
-MULT = "MULTIPLE"
-EQU = "EQU"
-LBL = "LABEL"
-SYM = "SYMBOL"
-INST = "INSTRUCTION"
-STOR = "STORAGE"
-SEC = "SECTION"
+ARGS = "arguments"
 BAD = "INVALID"
+DEF = "DEFINE"
+DIR = "directive"
+EQU = "EQU"
+INST = "INSTRUCTION"
+LBL = "LABEL"
+MULT = "MULTIPLE"
+NODE = "node"  # Rpresents an internal tokenized node.
+ORG = "origin"
+PARM = "parameters"
+REMN = "remainder"
+SEC = "SECTION"
+STOR = "STORAGE"
+SYM = "SYMBOL"
+TOK = "tokens"
 
-NodeType = Enum('NodeType', ['NODE',
-                             'EQU',
-                             'LBL',
-                             'SYM',
-                             'INST',
-                             'STOR',
-                             'SEC',
-                             'ORG',
+NodeType = Enum('NodeType', ['DEF',
                              'DIR',
-                             'DEF'])
+                             'EQU',
+                             'INST',
+                             'LBL',
+                             'ORG',
+                             'PARM',
+                             'SEC',
+                             'STOR',
+                             'SYM',
+                             'NODE'])
 
 
 NODE_TYPES = {
@@ -38,12 +41,13 @@ NODE_TYPES = {
     NodeType.EQU: EQU,
     NodeType.LBL: LBL,
     NodeType.SYM: SYM,
+    NodeType.PARM: PARM,
     NodeType.INST: INST,
     NodeType.STOR: STOR,
     NodeType.SEC: SEC,
     NodeType.ORG: ORG,
-    NodeType.DEF: "DEFINE",
-    NodeType.DIR: "directive"
+    NodeType.DEF: DEF,  # "DEFINE",
+    NodeType.DIR: DIR   # "directive"
 }
 
 AddressRange = namedtuple("AddressRange", ["start", "end"])
@@ -125,6 +129,9 @@ class ValueDescriptor():
     charset: str
 
 
+#
+# DESCR is shorthand for Descriptor
+#
 DEC_DESCR = ValueDescriptor(MinMax(0, 5), MinMax(0, 65535), 10,
                             string.digits)
 HEX_DESCR = ValueDescriptor(MinMax(0, 2), MinMax(0, 255), 16,

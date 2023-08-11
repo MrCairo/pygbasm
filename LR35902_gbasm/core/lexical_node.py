@@ -95,21 +95,21 @@ class LexicalNode:
     #         raise IndexError(key)
 
     def directive(self) -> str:
-        """Returns the current directive (DIR) value. This value can also be
-        accessed as 'variable[DIR]'. It is possible for this value to be
-        None."""
+        """Return the current DIR value."""
+        """This value can also be accessed as 'variable[DIR]'. It is possible
+        for this value to be None."""
         return self._data[DIR]
 
     def token(self):
-        """Returns the current token (TOK) value. This value can also be
-        accessed as 'variable[TOK]'. It is possible for this value to be
-        None."""
+        """Return the current TOK value."""
+        """This value can also be accessed as 'variable[TOK]'. It is possible
+        for this value to be None."""
         return self._data[TOK]
 
     def value(self) -> Dict:
-        """Returns the current LexicalNode as a raw dictionary. Please note
-        that this is a copy of the LexicanNode and not a reference to the
-        actual values."""
+        """Return the current LexicalNode as a raw dictionary."""
+        """Please note that this is a copy of the LexicanNode and not a
+        reference to the actual values."""
         return {DIR: self[DIR], TOK: self[TOK]}
 
     def _repr_of_instance(self) -> str:
@@ -117,6 +117,7 @@ class LexicalNode:
 
     @classmethod
     def is_valid_node(cls, node) -> bool:
+        """Return True if the node is valid. False otherwise."""
         valid = type(node) is LexicalNode
         if valid:
             valid = TOK in node and DIR in node

@@ -2,8 +2,8 @@
 from .reader import Reader, BufferReader, FileReader
 from .conversions import ExpressionConversion
 from .constants import NodeType, NODE_TYPES, DIRECTIVES, STORAGE_DIRECTIVES
-from .constants import NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC, MULT, EXT
-from .constants import ValueDescriptor, DEC_DESCR, HEX_DESCR, HEX16_DESCR
+from .constants import NODE, DIR, TOK, EQU, LBL, INST, STOR, SEC, MULT, ARGS
+from .constants import ValueDescriptor, DEC_DESCR, HEX_DESCR, HEX16_DESCR, PARM
 from .constants import BIN_DESCR, STR_DESCR, OCT_DESCR, VALUE_PREFIXES, MinMax
 
 from .label import Label, Labels, LabelUtils, LabelScope
@@ -32,11 +32,12 @@ from .instruction import Instruction
 from .instruction_pointer import InstructionPointer
 
 from .expression import Expression, ExpressionType
+from .tokenizer import Tokenizer, Token
 
 __all__ = [
     "Reader", "BufferReader", "FileReader", "ExpressionConversion",
     "ExpressionType", "Expression", "NODE", "DIR", "TOK", "EQU", "LBL",
-    "INST", "STOR", "SEC", "MULT", "EXT", "NodeType", "NODE_TYPES",
+    "PARM", "INST", "STOR", "SEC", "MULT", "ARGS", "NodeType", "NODE_TYPES",
     "ValueDescriptor", "DEC_DESCR", "HEX_DESCR", "HEX16_DESCR", "BIN_DESCR",
     "MinMax", "OCT_DESCR", "VALUE_PREFIXES", "STR_DESCR", "DIRECTIVES",
     "STORAGE_DIRECTIVES", "Equate", "ParserException", "DefineDataError",
@@ -48,5 +49,6 @@ __all__ = [
     "Storage", "StorageType", "Section", "SectionAddress", "SectionType",
     "LR35902Data", "InstructionSet", "Registers", "Instruction",
     "InstructionPointer", "BuildRunner", "BuildRunnerData", "Expression",
-    "ExpressionType", "ExpressionSyntaxError", "ExpressionBoundsError"
+    "ExpressionType", "ExpressionSyntaxError", "ExpressionBoundsError",
+    "Tokenizer", "Token"
 ]

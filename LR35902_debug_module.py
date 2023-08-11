@@ -1,17 +1,23 @@
+"""Section Debug Testing."""
 
-""" Section Debug Testing. """
 import pprint
-from LR35902_gbasm.core import Section, InstructionPointer,\
-    ExpressionConversion, Label, Expression, tokenize_line
+from LR35902_gbasm.core import Section, InstructionPointer, \
+    ExpressionConversion, Label, Expression, Tokenizer, Token
 
 
 class DebugFunctions:
-    """Class for debugging. Not a unit test file"""
+    0
+    """Class for debugging. Not a unit test file."""
 
     def __init__(self):
         """Create the DebugFunctions class."""
         self._ip = InstructionPointer()
         self._ec = ExpressionConversion()
+
+    def tokenize(self, line: str):
+        """Test tokenization."""
+        tok = Tokenizer().tokenize(line)
+        pprint.pprint(tok)
 
     def section_with_offset(self):
         """Debugs a basic SECTION."""
@@ -34,15 +40,22 @@ class DebugFunctions:
         print(expr.type)
         print(expr.to_decimal())
 
-        tok = tokenize_line('SECTION "game_vars", WRAM0[$0100]')
-        pprint.pprint(tok)
-#        value = self._ec.decimal_from_expression("$FFD2")
-#        pprint.pprint(value)
-#        value = self._ec.expression_from_decimal(1000, "$")
-#        value = self._ec.expression_type_from_expression("'Label'")
-#        pprint.pprint(value)
-
 
 if __name__ == "__main__":
     dbg = DebugFunctions()
-    dbg.convert_things()
+
+    tkn2 = Token.from_values("STORAGE",
+                             args=['DB', '$00', '$01', '$01', '$02', '$03',
+                                   '$FE', '$18', '$0d', '021', '%00100010'],
+                             remainder=None)
+
+    tkn = Token.from_values("SYMBOL",
+                            args=['.label:'],
+                            remainder=tkn2)
+
+    print(tkn.__repr__())
+
+    line = "SECTION 'game_vars', WRAM0[$0100]"
+#    dbg.tokenize(line)
+#    dbg.tokenize(".label: DB $00, $01, $01, $02, $03, $05, $08, \
+#                  $0d, 021, %00100010")

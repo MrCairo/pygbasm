@@ -1,3 +1,4 @@
+<<<<<<<< HEAD:LR35902_gbasm/core/label.py
 """Classes to handle labels.
 
 The LABEL is a simple way of keeping track of an address by providing a way to
@@ -53,6 +54,9 @@ Labels can be one of three types:
                                         Label is also missing trailing ':'.
              gr8            - Invalid - missing trailing ':' (or '::')
 """
+========
+"""Classes to handle labels."""
+>>>>>>>> 388e23f5a1ad0e5b6a1c1f405b12cbb477c9c82b:dmgasm/core/label.py
 
 import string
 from singleton_decorator import singleton
@@ -64,11 +68,24 @@ from .instruction_pointer import InstructionPointer
 from .instruction_set import InstructionSet
 
 
+
 class LabelScope(IntEnum):
     """Label Scope Constants."""
+<<<<<<<< HEAD:LR35902_gbasm/core/label.py
 
     LOCAL = auto()
     GLOBAL = auto()
+========
+
+    LOCAL = 1
+    GLOBAL = 2
+
+###############################################################################
+
+
+class Label(object):
+    """Represent a label which is used to represent an address or constant."""
+>>>>>>>> 388e23f5a1ad0e5b6a1c1f405b12cbb477c9c82b:dmgasm/core/label.py
 
 # ============================================================================
 
@@ -127,6 +144,10 @@ class Label():
 
     def __str__(self):
         """Describe the label."""
+<<<<<<<< HEAD:LR35902_gbasm/core/label.py
+========
+        is_const = "---"
+>>>>>>>> 388e23f5a1ad0e5b6a1c1f405b12cbb477c9c82b:dmgasm/core/label.py
         is_const = "Yes" if self._constant else "No"
         scope = "local" if self._scope == LabelScope.LOCAL else "global"
         desc = f"\nLabel: {self._original_label}\nvalue: 0x{self._value:04x} "

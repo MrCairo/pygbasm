@@ -24,8 +24,8 @@ from typing import List, Dict
 from .reader import Reader, BufferReader
 from .label import LabelUtils
 from .exception import ErrorCode, Error
-from .constants import DIRECTIVES, STORAGE_DIRECTIVES
-from .constants import DIR, TOK, EXT, NODE, MULT, EQU, LBL, INST, STOR, SEC, BAD
+from .constants import DIRECTIVES, STORAGE_DIRECTIVES, DIR, TOK, ARGS, PARM
+from .constants import NODE, MULT, EQU, LBL, INST, STOR, SEC, BAD
 from .registers import Registers
 from .instruction_set import InstructionSet as IS
 from .lexical_node import LexicalNode
@@ -38,6 +38,7 @@ class LexicalAnalyzer:
     results of the lexical analysis are accumulated internally by default so
     as to represent a complete
     """
+
     def __init__(self):
         self._line_no = 0
         self._nodes: List[LexicalNode] = []
@@ -61,7 +62,7 @@ class LexicalAnalyzer:
                 continue
             try:
                 node = self.analyze_string(line)
-                self._line_no += 1 # As long as there is a line, count it.
+                self._line_no += 1  # As long as there is a line, count it.
                 if node.directive() is None:
                     print("ERROR: Line could not be tokenized:")
                     print(line)
@@ -78,7 +79,7 @@ class LexicalAnalyzer:
     def analyze_string(self, line: str) -> LexicalNode:
         if line is None:
             return LexicalNode()
-        if len(line) and line[0] == "*": # This is a line comment - ignore it.
+        if len(line) and line[0] == "*":  # This is a line comment - ignore it.
             return LexicalNode()
         line = line.upper().split(";")[0].strip()  # drop comments
         if len(line) == 0:
@@ -143,7 +144,6 @@ class LexicalAnalyzer:
                 paren += 1
             elif c in ")]}":
                 paren -= 1
-            paren = max(0, paren) # If Negative set to 0
+            paren = max(0, paren)  # If Negative set to 0
             new_str += c
         return new_str
-
