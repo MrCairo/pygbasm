@@ -1,4 +1,4 @@
-
+"""Core assembler classes."""
 from .reader import Reader, BufferReader, FileReader
 from .conversions import ExpressionConversion
 from .constants import NodeType, NODE_TYPES, DIRECTIVES, STORAGE_DIRECTIVES
@@ -11,16 +11,17 @@ from .symbol import Symbol, Symbols, SymbolUtils, SymbolScope
 from .equate import Equate
 from .build_runner import BuildRunner, BuildRunnerData
 
-from .lexer_parser import LexerResults, LexerTokens, InstructionParser, \
-    BasicLexer, is_compound_node, is_node_valid, tokenize_line
+from .lexer_parser import LexerResults, LexerTokens, InstructionParser
+from .lexer_parser import BasicLexer, is_compound_node, is_node_valid
+from .lexer_parser import tokenize_line
 
 from .lexical_node import LexicalNode
 from .lexical_analyzer import LexicalAnalyzer
 
 from .exception import ParserException, DefineDataError
 from .exception import SectionDeclarationError, SectionTypeError
-from .exception import ErrorCode, Error, ExpressionBoundsError, \
-    ExpressionSyntaxError
+from .exception import ErrorCode, Error, ExpressionBoundsError
+from .exception import ExpressionSyntaxError
 
 from .storage import Storage, StorageType
 from .section import Section, SectionAddress, SectionType
@@ -32,7 +33,7 @@ from .instruction import Instruction
 from .instruction_pointer import InstructionPointer
 
 from .expression import Expression, ExpressionType
-from .tokenizer import Tokenizer, Token
+# from .tokens import Token, TokenGroup, Tokenizer
 
 __all__ = [
     "Reader", "BufferReader", "FileReader", "ExpressionConversion",
@@ -49,6 +50,6 @@ __all__ = [
     "Storage", "StorageType", "Section", "SectionAddress", "SectionType",
     "LR35902Data", "InstructionSet", "Registers", "Instruction",
     "InstructionPointer", "BuildRunner", "BuildRunnerData", "Expression",
-    "ExpressionType", "ExpressionSyntaxError", "ExpressionBoundsError",
-    "Tokenizer", "Token"
+    "ExpressionType", "ExpressionSyntaxError", "ExpressionBoundsError"
+    #   "Tokenizer", "Token", "TokenGroup"
 ]

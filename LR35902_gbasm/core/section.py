@@ -14,6 +14,9 @@ A Section token dictionary looks like this:
 }
 
 """
+from __future__ import annotations
+from typing import Optional
+
 #
 # Class that parses and contains information about a section.
 # There can only be one section per file.
@@ -29,6 +32,7 @@ from .constants import EQU, LBL, STOR, INST, SEC
 from .conversions import ExpressionConversion as EC
 from .exception import SectionDeclarationError, SectionTypeError
 from .lexer_parser import BasicLexer
+from .tokens import Token
 
 
 # ##############################################################################
@@ -59,6 +63,7 @@ class SectionType:
     """
 
     def __init__(self):
+        """Initialze the object."""
         #                                 start, end
         # ------------------------------------------------------------
         #
@@ -99,6 +104,29 @@ class SectionType:
 
 
 # ##############################################################################
+
+class SectionParser:
+    """Analyze the syntax of the SECTION tokens and export results."""
+
+    """
+    Token.from_values("SECTION",
+                  ['SECTION', ''game_vars',', 'WRAM0', '[', '$0100', ']', ',', 'bank', '1'])
+    """
+
+    def __init__(self):
+        """Initialize the parser."""
+        self._token = None
+        self._label = None
+        self._section_type = None
+        self._section_offset = None
+        self._bank = 0
+
+    def parse_token(self, token: Token) -> Optional[Section]:
+        """Parse the given token into a Section object."""
+        if token.directive != SEC:
+            return None
+
+
 class Section:
     """
     Handles the parsing of a SECTION line.
@@ -187,6 +215,7 @@ class SectionParser:
     _sec_type: SectionType
 
     def __init__(self, tokens: dict):
+        """Initialize the object."""
         self._tokens = tokens
         self._sec_type = SectionType()
         try:
@@ -196,14 +225,15 @@ class SectionParser:
             self._data = None
 
     def parsed_data(self):
-        """Returns the parsed_data dictionary"""
+        """Return the parsed_data dictionary."""
         return self._data
 
     def section_type(self) -> SectionType:
-        """Returns the section type (i.e WRAM0)"""
+        """Return the section type (i.e WRAM0)."""
         return self._sec_type
 
     def is_section(self):
+        """Return True if the object was initialized properly."""
         if len(self._tokens) < 3:
             return False
         if self._tokens[0].upper() != SEC:

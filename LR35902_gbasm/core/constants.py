@@ -1,39 +1,43 @@
-"""
-Commonly used constants
-"""
+"""Commonly used constants."""
+
 import string
 from enum import Enum, IntEnum, auto
 from dataclasses import dataclass
 from collections import namedtuple
 
+# Token Element Names
 ARGS = "arguments"
-BAD = "INVALID"
-DEF = "DEFINE"
+BAD = "invalid"
 DIR = "directive"
+PARM = "parameters"
+REMN = "remainder"
+TOK = "tokens"
+TELM = "telemetry"  # Location specific information
+NODE = "node"  # Rpresents an internal tokenized node.
+
+
+#  Code-level element names
+DEF = "DEFINE"
 EQU = "EQU"
 INST = "INSTRUCTION"
 LBL = "LABEL"
 MULT = "MULTIPLE"
-NODE = "node"  # Rpresents an internal tokenized node.
-ORG = "origin"
-PARM = "parameters"
-REMN = "remainder"
+ORG = "ORIGIN"
 SEC = "SECTION"
 STOR = "STORAGE"
 SYM = "SYMBOL"
-TOK = "tokens"
 
-NodeType = Enum('NodeType', ['DEF',
-                             'DIR',
-                             'EQU',
-                             'INST',
-                             'LBL',
-                             'ORG',
-                             'PARM',
-                             'SEC',
-                             'STOR',
-                             'SYM',
-                             'NODE'])
+NodeType = Enum('NodeType', ['DEF',    # Define
+                             'DIR',    # Directive (generic)
+                             'EQU',    # Equate
+                             'INST',   # Instruction
+                             'LBL',    # Label
+                             'ORG',    # Origin
+                             'PARM',   # Parameter
+                             'SEC',    # Section
+                             'STOR',   # Storage
+                             'SYM',    # Symbol
+                             'NODE'])  # Node
 
 
 NODE_TYPES = {
@@ -46,8 +50,8 @@ NODE_TYPES = {
     NodeType.STOR: STOR,
     NodeType.SEC: SEC,
     NodeType.ORG: ORG,
-    NodeType.DEF: DEF,  # "DEFINE",
-    NodeType.DIR: DIR   # "directive"
+    NodeType.DEF: DEF,
+    NodeType.DIR: DIR
 }
 
 AddressRange = namedtuple("AddressRange", ["start", "end"])
@@ -81,21 +85,25 @@ class NodeDefinition():
 LOGGER_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
 
 DIRECTIVES = [
-    "EQU",
-    "SET",
-    "SECTION",
-    "EQUS",
-    "MACRO",
+    "DB",  # Storage
+    "DEF",
+    "DL"   # Storage
+    "DS",  # Storage
+    "DW",  # Storage
     "ENDM",
+    "ENDU",
+    "EQU",
+    "EQUS",
     "EXPORT",
     "GLOBAL",
-    "PURGE",
     "INCBIN",
-    "UNION",
+    "MACRO",
     "NEXTU",
-    "ENDU",
-    "DEF",
-    "ORG"
+    "ORG",
+    "Purge",
+    "SECTION",
+    "SET",
+    "UNION",
 ]
 
 STORAGE_DIRECTIVES = ["DS", "DB", "DW", "DL"]

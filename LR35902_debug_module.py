@@ -1,23 +1,18 @@
-"""Section Debug Testing."""
+"""Quickly test various fetaures before going to unit tests."""
 
-import pprint
+
 from LR35902_gbasm.core import Section, InstructionPointer, \
-    ExpressionConversion, Label, Expression, Tokenizer, Token
+    ExpressionConversion, Label, Expression
+from LR35902_gbasm.core.tokens import Tokenizer, Token
 
 
 class DebugFunctions:
-    0
     """Class for debugging. Not a unit test file."""
 
     def __init__(self):
         """Create the DebugFunctions class."""
         self._ip = InstructionPointer()
         self._ec = ExpressionConversion()
-
-    def tokenize(self, line: str):
-        """Test tokenization."""
-        tok = Tokenizer().tokenize(line)
-        pprint.pprint(tok)
 
     def section_with_offset(self):
         """Debugs a basic SECTION."""
@@ -44,18 +39,22 @@ class DebugFunctions:
 if __name__ == "__main__":
     dbg = DebugFunctions()
 
-    tkn2 = Token.from_values("STORAGE",
-                             args=['DB', '$00', '$01', '$01', '$02', '$03',
-                                   '$FE', '$18', '$0d', '021', '%00100010'],
-                             remainder=None)
+    tkn2 = Token.create_using("STORAGE",
+                              args=['DB', '$00', '$01', '$01', '$02', '$03',
+                                    '$FE', '$18', '$0d', '021', '%00100010'],
+                              remainder=None)
 
-    tkn = Token.from_values("SYMBOL",
-                            args=['.label:'],
-                            remainder=tkn2)
+    tkn = Token.create_using("SYMBOL",
+                             args=['.label:'], remainder=tkn2)
 
     print(tkn.__repr__())
 
-    line = "SECTION 'game_vars', WRAM0[$0100]"
-#    dbg.tokenize(line)
-#    dbg.tokenize(".label: DB $00, $01, $01, $02, $03, $05, $08, \
-#                  $0d, 021, %00100010")
+    line = "SECTION 'game_vars', WRAM0[$0100], bank 1"
+    token_group = Tokenizer().tokenize(line)
+    print(token_group)
+
+    line = ".label: DB $FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF,$00,$FF"
+    token_group = Tokenizer().tokenize(line)
+    print(token_group)
+
+    # *Python :: Run file from project directory

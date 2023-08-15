@@ -70,24 +70,31 @@ class OrgType:
 
     @property
     def memory_blocks(self):
+        """Return the dictionary of memory blocks."""
         return self._mem_blocks
 
     def is_valid_type_name(self, org_type: str):
+        """Return true if the org_type name is valid."""
         sec = org_type.upper().strip()
         valid = (sec in self._mem_blocks.keys())
         if not valid:
             valid = (sec in ["BANK", "ALIGN"])
         return valid
 
-    def sectiontype_info(self, sectiontype):
-        if sectiontype in self._sections:
-            return self._sections[sectiontype]
+    def org_type_info(self, org_type: str):
+        """Return the org_type address info."""
+        if org_type in self._mem_blocks:
+            return self._mem_blocks[org_type]
         else:
             return None
 
 
 # ##############################################################################
-class Section:
+
+
+class Origin:
+    """Class that represents an ORG statement and it's values."""
+
     """
     Handles the parsing of a SECTION line.
     Before you can start writing code, you must define a section.
