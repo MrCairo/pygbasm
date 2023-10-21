@@ -3,12 +3,7 @@
 from __future__ import annotations
 from typing import Optional
 
-from ..constants import INST, SYM, DIRECTIVES, STORAGE_DIRECTIVES, BAD, STOR
 from ..conversions import ExpressionConversion
-# from ..conversions import ExpressionConversion
-# from ..constants import
-from ..instruction_set import InstructionSet as IS
-from ..symbol import SymbolUtils
 from . import Token, TokenGroup
 
 """
@@ -16,6 +11,15 @@ The Tokenizer simply breaks up a line of text into a dictionary. The
 dictionary starts off with a DIRECTIVE entry which identifies what the root
 command of the input line is. If the directive contains other directives, an
 additional DIRECTIVE entry is included.
+
+------------------------------------------------------------------------------
+
+It's important to note that tokenizing a line of text isn't the same thing as
+validating the conents. While the actual basic items are identified -
+Directive, instructions, or symbols - the parameters that appear after the
+directive are not checked against syntax.
+
+------------------------------------------------------------------------------
 
   The text: "SECTION 'game_vars', WRAM0[$0100]" would generate tokens like:
 
@@ -43,8 +47,6 @@ additional DIRECTIVE entry is included.
       above, the SYMBOL was on the same line as an INSTRUCTION.
 
 """
-
-EC = ExpressionConversion
 
 
 class Tokenizer:
@@ -80,34 +82,24 @@ class Tokenizer:
 
         # Break up into pieces and remove any empty elements
         pieces = [x for x in clean.split(" ") if x != ""]
-        token = Token()
 
-        if pieces[0] in DIRECTIVES:
-            token.directive = pieces[0]
-            token.arguments = pieces
-        elif pieces[0] in STORAGE_DIRECTIVES:
-            token.directive = STOR
-            token.arguments = pieces
-        elif IS().is_mnemonic(pieces[0]):
-            token.directive = INST
-            token.arguments = pieces
-        elif SymbolUtils.is_valid_symbol(pieces[0]):
-            token.directive = SYM
-            token.arguments = pieces
-
-            # It is possible that more instructions are on the same line as
-            # the symbol.
-            if len(pieces) > 1:
-                line2 = " ".join(pieces[1:])
-                token.arguments = pieces[:1]
-                self._group.add(token)
-                self._generate(line2)
-                return True
-        else:
-            token.directive = BAD
-            token.arguments = pieces
-
+        # Starting/ending Commas are irrelevant.
+        pieces = [s.strip(",") for s in pieces]
+        try:
+            token = Token(pieces)
+        except TypeError:
+            return False
         self._group.add(token)
+
+        # Add the token to the group. If there is remnant token data
+        # go into that remnant token and add it to the group as well.
+        # Continue to add remnant tokens until there are none. Generally,
+        # there should only be at the most one remnant token but the
+        # TokenGroup class is meant to handle as many as needed.
+        rmn_token = token.remainder
+        while rmn_token is not None:
+            self._group.add(rmn_token)
+            rmn_token = rmn_token.remainder
         return True
 
     def list_to_dict(self, arr: list) -> dict:
@@ -126,30 +118,17 @@ class Tokenizer:
             return line_of_text.strip().split(";")[0]
         return ""
 
-    def _join_brackets(self, text: str) -> str:
-        """Remove spaces to normalize a bracketed expression."""
+    def _explode_brackets(self, text: str) -> str:
+        """Return a string with brackets exploded for splitting."""
         """
         There are three types of brackets recognized:
             Round brackets: ()
             Square brackets: []
             Curly brackets: {}
+        Also, the double quote and single quote values are also
+        added to this as then also are used to enclose data.
         """
-        new_str = ""
-        paren = 0
-        for char in text:
-            if char == " " and paren > 0:
-                continue
-            if char in "([{":
-                paren += 1
-            elif char in ")]}":
-                paren -= 1
-                paren = max(0, paren)  # If Negative set to 0
-            new_str += char
-        return new_str
-
-    def _explode_brackets(self, text: str) -> str:
-        """Return a string with brackets exploded for splitting."""
-        brackets = "([{}])"
+        brackets = "\"'([{}])"
         exploded = text
         if any(char in text for char in brackets):
             for char in brackets:

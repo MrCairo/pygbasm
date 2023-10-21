@@ -64,6 +64,7 @@ class Label(object):
             self._constant = True
 
     def __str__(self):
+        """Return a descriptive representation of this object."""
         is_const = "---"
         is_const = "Yes" if self._constant else "No"
         scope = "local" if self._scope == LabelScope.LOCAL else "global"
@@ -73,6 +74,7 @@ class Label(object):
         return desc
 
     def __repr__(self):
+        """Return a str representation of how to re-construct this object."""
         desc = f"Label(\"{self._original_label}\", {self._value}, " \
             f"constant={self._constant})"
         return desc
@@ -83,13 +85,13 @@ class Label(object):
         return LBL
 
     def clean_name(self) -> str:
-        """Return the cleaned valid label stripped of the first and
-        last label characters"""
+        """Return a cleaned valid label."""
+        """The value is stripped of the first and last label characters"""
         return self._clean_label
 
     def name(self) -> str:
-        """Return the original value of the valid label. It will
-        start with a '.'"""
+        """Return the original value of the valid label."""
+        """It will start with a '.'"""
         return self._original_label
 
     def value(self) -> int:
@@ -235,11 +237,11 @@ class LabelUtils():
 
 @singleton
 class Labels(dict):
-    """A specialized dictionary that maintains all labels.
+    """Dictionary to maintains all labels."""
 
+    """
     Labels()[a_key] = a_label
     a_label = Labels()[a_key]
-
     """
     first_chars = string.ascii_letters + "."
     valid_chars = string.ascii_letters + string.digits + ".:_"
@@ -247,10 +249,12 @@ class Labels(dict):
     _labels = {}
 
     def __init__(self):
+        """Initialize a Labels dictionary once."""
         super().__init__()
         self._labels = dict()
 
     def __repr__(self):
+        """Return a str representation of how to re-construct this object."""
         desc = ""
         if self._labels:
             for label in self._labels:
@@ -258,6 +262,7 @@ class Labels(dict):
         return desc
 
     def __getitem__(self, key: str) -> Label:
+        """Return the value identified by 'key'."""
         if key:
             key = (key.lstrip(".")).rstrip(":.")
             key = key.upper()
@@ -267,6 +272,7 @@ class Labels(dict):
         return None
 
     def __setitem__(self, key: str, value: Label):
+        """Set a value in the dictionary with a given key."""
         if not isinstance(value, Label):
             raise TypeError(value)
         self._labels[value.clean_name().upper()] = value
@@ -276,15 +282,14 @@ class Labels(dict):
         return self[key]
 
     def add(self, label: Label):
-        """
-        Adds a new Label object to the dictionary.
-        """
+        """Add a new Label object to the dictionary."""
         if label is not None:
             self._labels[label.clean_name().upper()] = label
 
     def remove(self, label: Label):
-        """
-        Removes a label from the dictionary. The clean_name of the label is
+        """Remove a label from the dictionary.
+
+        The clean_name of the label is
         used as the key of the element to remove.
         """
         if label is not None:
@@ -296,23 +301,21 @@ class Labels(dict):
         return
 
     def local_labels(self) -> dict:
+        """Return a dictionary of just local scoped labels."""
         d = {k: v for k, v in self.items() if v.is_scope_global is False}
         return d
 
     def global_labels(self) -> dict:
+        """Return a dictionary of just globally scoped labels."""
         d = {k: v for k, v in self.items() if v.is_scope_global}
         return d
 
     def items(self) -> dict:
-        """
-        Returns the dictionary of Label objects.
-        """
+        """Return the dictionary of Label objects."""
         return self._labels
 
     def remove_all(self):
-        """
-        Removes all objects from the dictionary.
-        """
+        """Remove all objects from the dictionary."""
         self._labels.clear()
 
     # --------========[ End of class ]========-------- #

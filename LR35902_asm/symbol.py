@@ -28,8 +28,8 @@ Symbols have the following format:
 
 Symbols can be one of three types:
 
-1. A **LOCAL** symbol: this is a symbol whos scope is that of the current source
-   file only. A LOCAL symbol ends with a single ':'.
+1. A **LOCAL** symbol: this is a symbol whos scope is that of the current
+   source file only. A LOCAL symbol ends with a single ':'.
 
 2. A **PRIVATE** symbol: this is a symbol who's scope is only within the
    current LOCAL or GLOBAL symbol. This also means that a minor symbol cannot
@@ -50,9 +50,9 @@ Symbols can be one of three types:
                         global.
 
   Discussion:
-    A symbol must start with an upper or lower-cased alpha charater (a-z|A-Z|.)
-    or the '.' chatacter used to represent a minor symbol. A symbol must
-    also end with a ':' or '::'.
+    A symbol must start with an upper or lower-cased alpha charater
+    (a-z|A-Z|.)  or the '.' chatacter used to represent a minor symbol. A
+    symbol must also end with a ':' or '::'.
 
     A Symbol can contain numeric characters (0-9) as long as the
     numeric value appears after an alpha character.
@@ -75,6 +75,8 @@ from .exception import UpdateSymbolAddressError
 
 # from .build_runner import BuildRunner
 from .instruction_pointer import InstructionPointer
+
+from .descriptors import LabelValue
 
 
 class SymbolScope(StrEnum):
@@ -281,6 +283,7 @@ class SymbolUtils(object):
     @classmethod
     def valid_name_chars(cls):
         """Return a string of only valid characters of a name."""
+        return LabelValue("TEST").charset()
         return string.ascii_letters + string.digits + "_"
 
     @classmethod
@@ -305,43 +308,12 @@ class SymbolUtils(object):
         """Return True if symbol's name contains valid chars."""
         valid = True
         clean = SymbolUtils.clean_name(line)
-        chars = SymbolUtils.valid_name_chars()
-        for c in clean:
-            if c in chars:
-                continue
+        try:
+            LabelValue(clean)
+        except (ValueError, TypeError):
             valid = False
-            break
+
         return valid
-
-
-# def is_valid_symbol(name: str):
-#     """
-#     Returns True if 'name' would represent a valid symbol.  This function
-#     does not check the Symbols() container for the given symbol name.
-#     """
-#     symbol = Symbol(name.strip(), 0x00)  # Can we create a symbol from it?
-#     return symbol is not None
-
-# def valid_symbol_chars():
-#     """Returns an array (string)  of all valid characters of a symbol."""
-#     return string.ascii_letters + string.digits + ".:_"
-
-# def valid_symbol_first_char():
-#     """Returns an array (string) of all valid 1st characters of a symbol"""
-#     return string.ascii_letters + "."
-
-# def name_valid_symbol_chars(line: str):
-#     valid = True
-#     for c in line:
-#         if c in Symbols().valid_chars:
-#             continue
-#         else:
-#             valid = False
-#             break
-#     return valid
-
-
-######################################################################
 
 
 @singleton

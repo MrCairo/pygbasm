@@ -4,7 +4,9 @@ from __future__ import annotations
 from typing import Optional
 from collections import OrderedDict
 
-from ..constants import DIR, ARGS, REMN
+from ..constants import DIR, ARGS, REMN, DIRECTIVES, INST, BAD, SYM
+from ..instruction_set import InstructionSet as IS
+from ..symbol import SymbolUtils
 
 """
 A Token represents a set of lexemes that comprise a single line of source
@@ -19,23 +21,13 @@ Example:
                  'arg01': "'game_vars'",
                  'arg02': 'WRAM0[$0100]'}}
 
+  {'directive': 'SYMBOL',
+   'arguments': {'arg00': '.label:'}}
+
     - The 'directive' is the actual command, in this case a SECTION
       directive. The next part of the dictionary is an array of
       parameters. Parameter 0 is always the directive. The remaining
       parameters are there to support the directive.
-
-  --------------------------------------------------
-
-  {'directive': 'SYMBOL',
-   'arguments': {'arg00': '.label:'},
-   'remainder': {'directive': 'INSTRUCTION',
-                 'arguments': {'arg00': 'LD',
-                               'arg01': 'A',
-                               'arg02': '(BC)'}}}
-
-    - The presence of the 'tokens' key indicates that there are additional
-      tokens that were processed as part of the input line. In the example
-      above, the SYMBOL was on the same line as an INSTRUCTION.
 
 """
 
@@ -43,16 +35,18 @@ Example:
 class Token:
     """Object that encapsulates pieces of parsed data (lexemes).
 
-
     This object is an accessor class to the underlying data structure that
     represents a line of source code text. The Token class itself doesn't
     parse, but it is used to store the divided up pieces without resorting to
     an untyped dictionary.
     """
 
-    def __init__(self):
+    def __init__(self, pieces: list):
         """Initialze the objet and backing store."""
+        if pieces is None:
+            raise ValueError("Missing list of lexemes as input.")
         self._tok = OrderedDict()
+        self._assign(pieces)
 
     def __repr__(self) -> str:
         """Return representation on how this object can be built."""
@@ -122,5 +116,25 @@ class Token:
             tok.remainder = remainder
 
         return tok
+
+    def _assign(self, pieces: list):
+        if pieces[0] in DIRECTIVES:
+            self.directive = pieces[0]
+            self.arguments = pieces
+        elif IS().is_mnemonic(pieces[0]):
+            self.directive = INST
+            self.arguments = pieces
+        elif SymbolUtils.is_valid_symbol(pieces[0]):
+            self.directive = SYM
+            self.arguments = pieces
+
+            # It is possible that more instructions are on the same line as
+            # the symbol.
+            if len(pieces) > 1:
+                self.arguments = pieces[:1]
+                self.remainder = Token(pieces[1:])
+        else:
+            self.directive = BAD
+            self.arguments = pieces
 
     # --------========[ End of Token class ]========-------- #

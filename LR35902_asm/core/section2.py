@@ -14,9 +14,6 @@ A Section token dictionary looks like this:
 }
 
 """
-from __future__ import annotations
-from typing import Optional
-
 #
 # Class that parses and contains information about a section.
 # There can only be one section per file.
@@ -32,7 +29,6 @@ from .constants import EQU, LBL, STOR, INST, SEC
 from .conversions import ExpressionConversion as EC
 from .exception import SectionDeclarationError, SectionTypeError
 from .lexer_parser import BasicLexer
-from .tokens import Token
 
 
 # ##############################################################################
@@ -57,17 +53,16 @@ class SectionAddress(namedtuple("SectionAddress", ["begin", "end"])):
 
 class SectionType:
     """
-    A class of address types from WRAM0 to OAM.
-    These names are used to easily
-    reference special address blocks of the Game Boy system.
+    A class of section types from WRAM0 to OAM.
     """
 
     def __init__(self):
-        """Initialze the object."""
-        #                                 start, end
+        #                                             start, end
         # ------------------------------------------------------------
         #
-        self._mem_blocks = {
+        """ The 
+        """
+        self._type_names = {
             "WRAM0": {"id": 0, "range": (0xC000, 0xCFFF)},
             "VRAM":  {"id": 1, "range": (0x8000, 0x9FFF)},
             "ROMX":  {"id": 2, "range": (0x4000, 0x7FFF)},
@@ -81,52 +76,21 @@ class SectionType:
 
     @property
     def sections(self):
-        """Return a dict of memory blocks that are valid in a SECTION."""
-        return self._mem_blocks
-
-    @property
-    def mem_blocks(self):
-        """Return a dict of memory blocks that are valid in a SECTION."""
-        return self._mem_blocks
+        return self._type_names
 
     def is_valid_sectiontype(self, sectionType):
-        """Return True if the sectionType is valid. False otherwise."""
         sec = sectionType.upper().strip()
         valid = (sec in self.sections.keys())
         return valid
 
     def sectiontype_info(self, sectiontype):
-        """Return the ID and memory range of sectionType."""
-        if sectiontype in self._mem_blocks:
-            return self._mem_blocks[sectiontype]
+        if sectiontype in self._type_names:
+            return self._type_names[sectiontype]
         else:
             return None
 
 
 # ##############################################################################
-
-class SectionParser:
-    """Analyze the syntax of the SECTION tokens and export results."""
-
-    """
-    Token.from_values("SECTION",
-                  ['SECTION', ''game_vars',', 'WRAM0', '[', '$0100', ']', ',', 'bank', '1'])
-    """
-
-    def __init__(self):
-        """Initialize the parser."""
-        self._token = None
-        self._label = None
-        self._section_type = None
-        self._section_offset = None
-        self._bank = 0
-
-    def parse_token(self, token: Token) -> Optional[Section]:
-        """Parse the given token into a Section object."""
-        if token.directive != SEC:
-            return None
-
-
 class Section:
     """
     Handles the parsing of a SECTION line.
@@ -209,13 +173,12 @@ class Section:
 
 
 class SectionParser:
-    """Parses a possible SECTION line."""
+    """Parses a possible SECTION line """
     _data: dict
     _tokens: dict
     _sec_type: SectionType
 
     def __init__(self, tokens: dict):
-        """Initialize the object."""
         self._tokens = tokens
         self._sec_type = SectionType()
         try:
@@ -225,15 +188,14 @@ class SectionParser:
             self._data = None
 
     def parsed_data(self):
-        """Return the parsed_data dictionary."""
+        """Returns the parsed_data dictionary"""
         return self._data
 
     def section_type(self) -> SectionType:
-        """Return the section type (i.e WRAM0)."""
+        """Returns the section type (i.e WRAM0)"""
         return self._sec_type
 
     def is_section(self):
-        """Return True if the object was initialized properly."""
         if len(self._tokens) < 3:
             return False
         if self._tokens[0].upper() != SEC:

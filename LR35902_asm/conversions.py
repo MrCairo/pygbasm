@@ -85,7 +85,6 @@ class ExpressionConversion():
         key = expression.prefix
         conv = None if key not in self._to_dec else self._to_dec[key]
         if conv and expression.type is not ExpressionType.CHARACTER:
-            decimal = conv(expression)
             return conv(expression)
         return None
 
@@ -233,9 +232,11 @@ class ExpressionConversion():
         return False
 
     def _is_character(self, expression: str):
-        """Return True if the expression is a character expression.
+        """Return True if the expression is a character expression."""
+        """
         A character expression type must begin and end
-        with double-quotes. It's a string."""
+        with double-quotes. It's a string.
+        """
         dquotes = expression.startswith('"') and expression.endswith('"')
         squotes = expression.startswith("'") and expression.endswith("'")
         return dquotes or squotes

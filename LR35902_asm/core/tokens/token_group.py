@@ -1,6 +1,6 @@
 """Classes that convert text into Tokens."""
 
-from __future__ import annotations
+# from __future__ import annotations
 from collections import OrderedDict
 from .token import Token
 
@@ -60,34 +60,3 @@ class TokenGroup:
     def tokens(self) -> list:
         """Return a list of Tokens in the group."""
         return list(self._group_store.values())
-
-
-class TokenAssignment:
-    """Various parsers for a set of tokens."""
-
-    _tokens: list
-
-    def __init__(self):
-        """Initialize the object."""
-        self._tokens = []
-
-    def _id_tokens(self, token: Token):
-        pass
-
-    def parse_section(self, tokens):
-        """Identify the tokens as SECTION."""
-        pass
-
-    def parse_instruction(self, tokens):
-        """Identify the tokens as INS."""
-        pass
-
-    def parse_symbol(self, tokens):
-        """Identify the tokens as SYM."""
-        pass
-
-    def parse_storage(self, tokens):
-        """Identify the tokens as STOR."""
-        pass
-
-    # --------========[ End of class ]========-------- #
