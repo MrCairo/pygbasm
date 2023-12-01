@@ -5,7 +5,7 @@ from enum import IntEnum, Enum, auto
 from dataclasses import dataclass
 from collections import namedtuple
 
-# Token Element Names
+# Token element names
 ARGS = "arguments"
 BAD = "invalid"
 DIR = "directive"

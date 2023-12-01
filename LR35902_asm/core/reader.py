@@ -36,7 +36,8 @@ class Reader(object):
         return self._eof
     
     def strip_comment(self):
-        if self._line[0] == "*": # A "*" in the first column means the entire line is a comment
+        # A "*" in the first column means the entire line is a comment
+        if self._line[0] == "*":
             self._line = ""
             return
         cleaned = self._line.split(";")

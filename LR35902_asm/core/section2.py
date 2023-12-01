@@ -57,11 +57,10 @@ class SectionType:
     """
 
     def __init__(self):
+        """Initialze the object."""
         #                                             start, end
         # ------------------------------------------------------------
         #
-        """ The 
-        """
         self._type_names = {
             "WRAM0": {"id": 0, "range": (0xC000, 0xCFFF)},
             "VRAM":  {"id": 1, "range": (0x8000, 0x9FFF)},

@@ -1,14 +1,14 @@
 import pprint
 
-from .exception import Error, ErrorCode
-from .conversions import ExpressionConversion
-from .reader import Reader, BufferReader
-from .constants import DIRECTIVES, STORAGE_DIRECTIVES
-from .constants import DIR, TOK, MULT, LBL, INST, STOR, BAD
-from .registers import Registers
-from .instruction_set import InstructionSet as IS
+from ..core.exception import Error, ErrorCode
+from ..core.conversions import ExpressionConversion
+from ..core.reader import Reader, BufferReader
+from ..core.constants import DIRECTIVES, STORAGE_DIRECTIVES
+from ..core.constants import DIR, TOK, MULT, LBL, INST, STOR, BAD
+from ..core.registers import Registers
+from ..instructions.instruction_set import InstructionSet as IS
 from .lexer_results import LexerResults, LexerTokens
-from .label import LabelUtils
+from ..core.label import LabelUtils
 
 EC = ExpressionConversion
 
