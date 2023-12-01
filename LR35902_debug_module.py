@@ -7,9 +7,9 @@ import string
 import sys
 from collections import namedtuple
 
-from LR35902_gbasm.core import Section, InstructionPointer
-from LR35902_gbasm.core import ExpressionConversion, Label, Expression
-from LR35902_gbasm.core.tokens import Tokenizer
+from LR35902_asm.core import Section, InstructionPointer
+from LR35902_asm.core import ExpressionConversion, Label, Expression
+from LR35902_asm.core.tokens import Tokenizer
 
 MinMax = namedtuple("MinMax", ['min', 'max'])
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
     dbg = DebugFunctions()
 
     h = HexValue("ABCD")
-    sys.exit(0)
+    # sys.exit(0)
 
     dbg.convert_things()
     # tkn2 = Token.create_using("STORAGE",

@@ -74,9 +74,9 @@ from .constants import SYM
 from .exception import UpdateSymbolAddressError
 
 # from .build_runner import BuildRunner
-from .instruction_pointer import InstructionPointer
+from ..instructions.instruction_pointer import InstructionPointer
 
-from .descriptors import LabelValue
+from .descriptor import LabelValue
 
 
 class SymbolScope(StrEnum):

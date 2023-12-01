@@ -4,7 +4,7 @@
 from abc import ABC, abstractmethod
 import string
 from dataclasses import dataclass
-from ..constants import MinMax
+from .constants import MinMax
 
 
 @dataclass

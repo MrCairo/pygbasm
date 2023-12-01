@@ -29,7 +29,7 @@ from .exception import SectionDeclarationError, SectionTypeError
 from .lexer_parser import BasicLexer
 
 
-# ##############################################################################
+# ############################################################################
 
 # Class that is just a namedtuple representing the Section start and end
 # address.
@@ -44,7 +44,7 @@ class OrgAddress(namedtuple("OrgAddress", ["begin", "end"])):
     """
     pass
 
-# ##############################################################################
+# ############################################################################
 
 
 class OrgType:
@@ -89,7 +89,7 @@ class OrgType:
             return None
 
 
-# ##############################################################################
+# ############################################################################
 
 
 class Origin:
@@ -247,8 +247,8 @@ class SectionParser:
                 sym_dict = {"symbol": '', 'param': ''}
                 sym = args[idx].split('[')
                 if not self._sec_type.is_valid_sectiontype(sym[0]):
-                    raise SectionTypeError(f"The section type '{sym[0]}' "
-                                           "is not a valid section type.")
+                    raise SectionTypeError(f"The org type '{sym[0]}' "
+                                           "is not a valid type.")
                 sym_dict["symbol"] = sym[0]
                 if len(sym) > 1:  # Will be something line "$4000]"
                     exp = sym[1].strip("]")

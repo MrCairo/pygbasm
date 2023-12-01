@@ -6,7 +6,7 @@ from singleton_decorator import singleton
 if __name__ in ["instruction_pointer", "__main__"]:
     from conversions import ExpressionConversion as EC
 else:
-    from .conversions import ExpressionConversion as EC
+    from ..core.conversions import ExpressionConversion as EC
 
 ###############################################################################
 # Manages the instruction pointer position. Nececesary to compute

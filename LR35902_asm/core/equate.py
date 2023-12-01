@@ -5,7 +5,7 @@ import string
 from .label import Label
 from .conversions import ExpressionConversion
 from .constants import TOK, DIR, LBL, EQU
-from .lexer_parser import BasicLexer
+from ..lexer.lexer_parser import BasicLexer
 
 EC = ExpressionConversion
 # TOK = const.TOK
